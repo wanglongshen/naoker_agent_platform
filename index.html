@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>脑壳工作台 · 广告营销 AI Agent 平台 · 架构图</title>
+<style>
+  :root {
+    --brand: #d96313;
+    --brand-soft: #e8751d;
+    --bg: #faf7f3;
+    --ink: #2b2521;
+    --muted: #6f6259;
+    --line: #eadfd4;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.7 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .kicker { color: var(--brand); font-weight: 600; letter-spacing: .08em; font-size: 13px; text-transform: uppercase; }
+  h1 { font-size: 30px; margin: 10px 0 12px; }
+  .lede { color: var(--muted); max-width: 720px; margin: 0; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 32px 0 8px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .stat b { display: block; font-size: 22px; color: var(--brand); }
+  .stat span { color: var(--muted); font-size: 13px; }
+  h2 { font-size: 19px; margin: 44px 0 14px; }
+  ul.diagrams { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  ul.diagrams li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+  ul.diagrams a { display: flex; align-items: baseline; gap: 12px; padding: 16px 18px; text-decoration: none; color: inherit; }
+  ul.diagrams a:hover { border-color: var(--brand-soft); }
+  ul.diagrams .name { font-weight: 600; }
+  ul.diagrams .file { color: var(--muted); font-size: 13px; font-family: ui-monospace, Consolas, monospace; }
+  .links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .links a { background: var(--brand); color: #fff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; }
+  .links a.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Portfolio · Architecture</div>
+    <h1>脑壳工作台 · 广告营销 AI Agent 平台</h1>
+    <p class="lede">
+      面向广告营销场景的企业级 AI Agent 平台：把「人工 1-2 天出一份营销方案」压缩到 10 分钟以内，
+      并在企业内部资料上做到 90%+ 检索命中率。全栈实现，过程文档与验收数据全部留痕。
+    </p>
+    <div class="stats">
+      <div class="stat"><b>≤10 分钟</b><span>单份方案端到端交付（人工 1-2 天）</span></div>
+      <div class="stat"><b>90.9%</b><span>知识库 recall@5（110 问黄金集）</span></div>
+      <div class="stat"><b>10/10</b><span>执行内核切轨逐字节零差异</span></div>
+      <div class="stat"><b>1,300+ / 660+</b><span>后端 / 前端测试全绿</span></div>
+    </div>
+  </header>
+
+  <h2>交互式架构图</h2>
+  <ul class="diagrams">
+    <li><a href="system-architecture.html"><span class="name">系统架构总览</span><span class="file">system-architecture.html</span></a></li>
+    <li><a href="system-architecture-diagrams.html"><span class="name">分层架构与数据流</span><span class="file">system-architecture-diagrams.html</span></a></li>
+    <li><a href="streaming-flow-diagrams.html"><span class="name">流式输出与双通道事件推送</span><span class="file">streaming-flow-diagrams.html</span></a></li>
+    <li><a href="rbac-diagrams.html"><span class="name">RBAC 权限模型</span><span class="file">rbac-diagrams.html</span></a></li>
+    <li><a href="file-management-diagrams.html"><span class="name">文件管理模块</span><span class="file">file-management-diagrams.html</span></a></li>
+    <li><a href="audit-page-mockup.html"><span class="name">对话审计页设计稿</span><span class="file">audit-page-mockup.html</span></a></li>
+  </ul>
+
+  <h2>源码与文档</h2>
+  <div class="links">
+    <a href="https://github.com/wanglongshen/naoker_agent_platform">GitHub 仓库</a>
+    <a class="ghost" href="https://github.com/wanglongshen/naoker_agent_platform#readme">README（技术栈 / 快速开始）</a>
+    <a class="ghost" href="https://github.com/wanglongshen/naoker_agent_platform/tree/main/docs/superpowers/specs">设计规格</a>
+    <a class="ghost" href="https://github.com/wanglongshen/naoker_agent_platform/tree/main/docs/verification">验收清单</a>
+  </div>
+
+  <footer>
+    架构图均为自包含 HTML（内联样式与 SVG，无外部依赖）。源码为个人作品集展示，保留所有权利；
+    vendored 的 DeepSeekHarness 遵循其 MIT 许可。
+  </footer>
+</div>
+</body>
+</html>

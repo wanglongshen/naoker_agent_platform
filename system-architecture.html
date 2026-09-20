@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业智助 SSE 流式对话架构</title>
+<style>
+  :root{
+    --bg:#f6f4f1; --card:#ffffff; --ink:#26211c; --ink-2:#5c534b; --ink-3:#8a8077;
+    --line:#e9e2da; --brand:#d96313; --brand-soft:#fdf1e6;
+    --blue:#3d5afe; --green:#0f9d6e; --red:#d3382c; --purple:#7c4dff; --amber:#c98a00;
+    --blue-soft:#eef1ff; --green-soft:#e9f8f1; --red-soft:#fdeeed; --purple-soft:#f3eeff; --amber-soft:#fdf6e6;
+    --mono:"JetBrains Mono","Cascadia Code",Consolas,"SF Mono",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.75;padding:36px 20px 80px}
+  .container{max-width:1240px;margin:0 auto}
+
+  /* ---------- header ---------- */
+  .hero{text-align:center;margin:8px 0 36px}
+  .hero .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.14em;color:var(--brand);background:var(--brand-soft);border:1px solid #f5d9bf;padding:4px 14px;border-radius:99px;text-transform:uppercase}
+  .hero h1{font-size:32px;font-weight:800;letter-spacing:-.02em;margin:14px 0 8px}
+  .hero .sub{color:var(--ink-2);font-size:14.5px}
+  .hero .meta{color:var(--ink-3);font-size:12.5px;margin-top:8px}
+
+  /* ---------- diagram ---------- */
+  .diagram-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 24px 18px;margin-bottom:28px;box-shadow:0 10px 30px rgba(84,52,16,.05)}
+  .diagram-card svg{width:100%;height:auto;display:block}
+
+  /* ---------- sections ---------- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 28px;box-shadow:0 6px 20px rgba(84,52,16,.04)}
+  .card.full{grid-column:1/-1}
+  .card h2{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:750;margin-bottom:6px}
+  .card h2 .num{background:var(--brand);color:#fff;width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+  .card .lead{color:var(--ink-2);font-size:13.5px;margin-bottom:16px}
+  .card h3{font-size:14px;font-weight:700;margin:20px 0 8px;color:var(--ink)}
+  .card p{color:var(--ink-2);font-size:14px;margin-bottom:10px}
+  .card ul{padding-left:20px;color:var(--ink-2);font-size:14px}
+  .card li{margin-bottom:5px}
+  code{font-family:var(--mono);font-size:12.5px;background:#f3efea;border:1px solid #eae3da;padding:1.5px 6px;border-radius:5px;color:#b4550f}
+
+  /* ---------- channel cards ---------- */
+  .channel{display:flex;gap:14px;border-radius:12px;padding:16px 18px;margin-bottom:12px;border:1px solid}
+  .channel .dot{width:10px;height:10px;border-radius:99px;margin-top:7px;flex-shrink:0}
+  .channel b{display:block;font-size:14px;margin-bottom:3px}
+  .channel p{font-size:13.5px;margin:0 0 6px;color:var(--ink-2)}
+  .channel p:last-child{margin-bottom:0}
+  .ch-green{border-color:#bde7d5;background:var(--green-soft)} .ch-green .dot{background:var(--green)}
+  .ch-red{border-color:#f3c4c0;background:var(--red-soft)} .ch-red .dot{background:var(--red)}
+  .ch-amber{border-color:#eedcae;background:var(--amber-soft)} .ch-amber .dot{background:var(--amber)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;border-radius:99px;padding:1px 9px;margin-left:8px;vertical-align:1px}
+  .tag-green{background:#d3f0e2;color:#0b7a54}
+  .tag-red{background:#fbd9d6;color:#b3281d}
+  .tag-amber{background:#f7e6bd;color:#9c6b00}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;margin:6px 0 4px}
+  thead th{background:#faf6f1;color:var(--ink-3);font-weight:700;text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.02em}
+  thead th:first-child{border-radius:10px 0 0 0}
+  thead th:last-child{border-radius:0 10px 0 0}
+  tbody td{padding:9px 14px;border-bottom:1px solid #f3eee8;color:var(--ink-2);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fbf8f4}
+  td .ev{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink)}
+  .pill{display:inline-block;font-size:10.5px;font-weight:600;border-radius:99px;padding:1px 8px;margin-right:4px;white-space:nowrap}
+  .p-orange{background:var(--brand-soft);color:var(--brand)}
+  .p-blue{background:var(--blue-soft);color:#2f46d8}
+  .p-green{background:var(--green-soft);color:#0b7a54}
+  .p-red{background:var(--red-soft);color:#b3281d}
+  .p-gray{background:#f1f1f1;color:#6d6660}
+  .chips{white-space:nowrap}
+
+  /* ---------- flow rows ---------- */
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;font-size:13px}
+  .flow .step{background:#faf6f1;border:1px solid var(--line);border-radius:9px;padding:6px 13px;white-space:nowrap;color:var(--ink-2)}
+  .flow .step.hot{background:var(--brand-soft);border-color:#f0cdad;color:#a3480a}
+  .flow .step.red{background:var(--red-soft);border-color:#f0c4bf;color:#b3281d}
+  .flow .step.green{background:var(--green-soft);border-color:#bde7d5;color:#0b7a54}
+  .flow .arr{color:var(--brand);font-weight:800}
+
+  /* ---------- constants ---------- */
+  .const-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .const{background:#fbf8f4;border:1px solid var(--line);border-radius:11px;padding:12px 15px}
+  .const .k{font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.03em}
+  .const .v{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink);margin-top:2px}
+  .const .d{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+
+  @media (max-width:960px){ .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <span class="kicker">Runtime Architecture</span>
+  <h1>企业智助 — SSE 流式对话架构</h1>
+  <p class="sub">FastAPI + PostgreSQL + Redis Streams 后端 · Next.js 前端 · EventBus 单一汇聚 · 端到端实测链路</p>
+  <p class="meta">以当前运行代码为准 · 2026-07 实测核验</p>
+</div>
+
+<!-- ============ SVG DIAGRAM ============ -->
+<div class="diagram-card">
+<svg viewBox="0 0 1200 1388" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI','Microsoft YaHei',sans-serif">
+  <defs>
+    <linearGradient id="gU" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d96313"/><stop offset="100%" stop-color="#fba05a"/></linearGradient>
+    <linearGradient id="gF" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3d5afe"/><stop offset="100%" stop-color="#7184ff"/></linearGradient>
+    <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0f9d6e"/><stop offset="100%" stop-color="#3cc59a"/></linearGradient>
+    <linearGradient id="gL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7c4dff"/><stop offset="100%" stop-color="#a98dff"/></linearGradient>
+    <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d3382c"/><stop offset="100%" stop-color="#ee6a5f"/></linearGradient>
+    <linearGradient id="gBus" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#171d2b"/><stop offset="100%" stop-color="#293249"/></linearGradient>
+    <marker id="aO" w="10" h="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#d96313"/></marker>
+    <marker id="aB" w="10" h="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#3d5afe"/></marker>
+    <marker id="aG" w="10" h="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#0f9d6e"/></marker>
+    <marker id="aP" w="10" h="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#7c4dff"/></marker>
+    <marker id="aR" w="10" h="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#d3382c"/></marker>
+    <marker id="aY" w="10" h="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#c98a00"/></marker>
+    <marker id="aD" w="10" h="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#f1f5f9"/></marker>
+  </defs>
+
+  <!-- ===== 1 USER ===== -->
+  <rect x="475" y="8" width="250" height="36" rx="10" fill="url(#gU)"/>
+  <text x="600" y="31" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="700">用户</text>
+  <line x1="600" y1="44" x2="600" y2="66" stroke="#d96313" stroke-width="2" marker-end="url(#aO)"/>
+
+  <!-- ===== 2 FRONTEND ===== -->
+  <rect x="300" y="68" width="600" height="44" rx="10" fill="url(#gF)"/>
+  <text x="600" y="86" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="700">ChatComposer → createSession + createRun → 跳转 /agent/sessions/{id}</text>
+  <text x="600" y="103" text-anchor="middle" fill="rgba(255,255,255,.72)" font-size="10.5">POST /api/agent/sessions · POST /api/agent/sessions/{id}/runs</text>
+  <line x1="600" y1="112" x2="600" y2="134" stroke="#3d5afe" stroke-width="2" marker-end="url(#aB)"/>
+
+  <!-- ===== 3 API ===== -->
+  <rect x="300" y="136" width="540" height="42" rx="10" fill="url(#gB)"/>
+  <text x="600" y="154" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">FastAPI：INSERT AgentSession + AgentRun(queued) + AgentRunAttempt(queued)</text>
+  <text x="600" y="170" text-anchor="middle" fill="rgba(255,255,255,.75)" font-size="10.5">pg_notify("new_run") → 唤醒 Worker</text>
+  <line x1="600" y1="178" x2="600" y2="286" stroke="#0f9d6e" stroke-width="2" marker-end="url(#aG)"/>
+
+  <!-- new_run wake line -->
+  <path d="M 840 157 L 928 157 L 928 288" stroke="#c98a00" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#aY)"/>
+  <rect x="936" y="252" width="250" height="46" rx="10" fill="#f7e6bd"/>
+  <text x="1061" y="271" text-anchor="middle" fill="#7a5300" font-size="11" font-weight="700">Worker._listen_new_runs</text>
+  <text x="1061" y="288" text-anchor="middle" fill="#9c6b00" font-size="9.5">asyncpg LISTEN "new_run" → 立即抢任务</text>
+  <text x="884" y="238" text-anchor="middle" fill="#c98a00" font-size="9.5" font-weight="600">PostgreSQL NOTIFY</text>
+  <text x="884" y="251" text-anchor="middle" fill="#9c6b00" font-size="9">（仅任务唤醒，与事件流无关）</text>
+
+  <!-- ===== 4 WORKER ===== -->
+  <rect x="150" y="288" width="900" height="98" rx="12" fill="#0c2517"/>
+  <text x="600" y="310" text-anchor="middle" fill="#4ade80" font-size="12.5" font-weight="700">AgentWorker._claim_and_execute → AgentLoopService._do_process_attempt</text>
+  <text x="600" y="332" text-anchor="middle" fill="rgba(74,222,128,.72)" font-size="10.5">run_started → while 步骤数 &lt; max：两步规划（planner 流式收集 → JSON 解析失败重试 → plan_created）</text>
+  <text x="600" y="350" text-anchor="middle" fill="rgba(74,222,128,.72)" font-size="10.5">→ _stream_visible_thought（每 token）→ tool_executor（web_search / http / extract / calculator）</text>
+  <text x="600" y="368" text-anchor="middle" fill="rgba(74,222,128,.72)" font-size="10.5">→ finish：_stream_final_answer（20ms 批量）→ _persist_successful_completion（原子终态）</text>
+  <text x="600" y="382" text-anchor="middle" fill="rgba(74,222,128,.5)" font-size="9.5">租约续期 lease/3 · 异常 classify_agent_failure · 重试 max_retry_attempts=3</text>
+
+  <line x1="370" y1="386" x2="240" y2="426" stroke="#7c4dff" stroke-width="2" marker-end="url(#aP)"/>
+  <line x1="600" y1="386" x2="600" y2="426" stroke="#7c4dff" stroke-width="2" marker-end="url(#aP)"/>
+  <line x1="830" y1="386" x2="960" y2="426" stroke="#7c4dff" stroke-width="2" marker-end="url(#aP)"/>
+
+  <!-- ===== 5 LLM ===== -->
+  <rect x="105" y="428" width="270" height="52" rx="10" fill="url(#gL)"/>
+  <text x="240" y="450" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="700">Planner（DeepSeek）</text>
+  <text x="240" y="468" text-anchor="middle" fill="rgba(255,255,255,.65)" font-size="9.5">流式收集 → JSON 解析失败 → create_plan 重试</text>
+
+  <rect x="420" y="428" width="360" height="52" rx="10" fill="url(#gL)"/>
+  <text x="600" y="450" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="700">_stream_final_answer（DeepSeek）</text>
+  <text x="600" y="468" text-anchor="middle" fill="rgba(255,255,255,.65)" font-size="9.5">answer_delta（20ms 批）→ checkpoint → answer_completed</text>
+
+  <rect x="825" y="428" width="270" height="52" rx="10" fill="url(#gL)"/>
+  <text x="960" y="450" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="700">Visible Thought（DeepSeek）</text>
+  <text x="960" y="468" text-anchor="middle" fill="rgba(255,255,255,.65)" font-size="9.5">visible_thought_delta 每 token</text>
+
+  <rect x="360" y="494" width="480" height="24" rx="8" fill="#241d3d"/>
+  <text x="600" y="510" text-anchor="middle" fill="#b7a5f5" font-size="10" font-weight="600">httpx 流式 → api.deepseek.com → SSE token 流</text>
+
+  <line x1="600" y1="518" x2="600" y2="552" stroke="#0f9d6e" stroke-width="2" marker-end="url(#aG)"/>
+
+  <!-- ===== 6 TWO CHANNELS ===== -->
+  <text x="600" y="572" text-anchor="middle" fill="#26211c" font-size="14.5" font-weight="750">append_event(INSERT) → 两条事件通道</text>
+
+  <text x="330" y="596" text-anchor="middle" fill="#d3382c" font-size="11.5" font-weight="700">通道 ① Redis Streams · 批量</text>
+  <text x="870" y="596" text-anchor="middle" fill="#0f9d6e" font-size="11.5" font-weight="700">通道 ② EventBus · 同进程即时</text>
+
+  <rect x="205" y="606" width="250" height="66" rx="10" fill="url(#gR)"/>
+  <text x="330" y="628" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">XADD agent:events</text>
+  <text x="330" y="646" text-anchor="middle" fill="rgba(255,255,255,.75)" font-size="9.5">32ms / 20 条 pipeline 批缓冲</text>
+  <text x="330" y="661" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="9">maxlen 10000</text>
+
+  <rect x="745" y="606" width="250" height="66" rx="10" fill="url(#gB)"/>
+  <text x="870" y="628" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">event_bus.publish(EventItem)</text>
+  <text x="870" y="646" text-anchor="middle" fill="rgba(255,255,255,.75)" font-size="9.5">asyncio.Queue 完整 payload · 微秒级</text>
+  <text x="870" y="661" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="9">所有事件均发布（含成功终态）</text>
+
+  <line x1="330" y1="672" x2="330" y2="698" stroke="#d3382c" stroke-width="1.5"/>
+  <line x1="870" y1="672" x2="870" y2="698" stroke="#0f9d6e" stroke-width="1.5"/>
+
+  <rect x="205" y="700" width="250" height="40" rx="10" fill="#7f1d1d"/>
+  <text x="330" y="714" text-anchor="middle" fill="#fca5a5" font-size="10.5" font-weight="600">RedisBridge._subscribe_loop</text>
+  <text x="330" y="730" text-anchor="middle" fill="rgba(252,165,165,.6)" font-size="9">XREADGROUP → 解析 → 注入 EventBus</text>
+
+  <rect x="745" y="700" width="250" height="40" rx="10" fill="#0b5c41"/>
+  <text x="870" y="714" text-anchor="middle" fill="#86efac" font-size="10.5" font-weight="600">同进程直推</text>
+  <text x="870" y="730" text-anchor="middle" fill="rgba(134,239,172,.6)" font-size="9">无网络、无 DB 查询 · 主通道</text>
+
+  <line x1="330" y1="740" x2="550" y2="778" stroke="#d3382c" stroke-width="1.5"/>
+  <line x1="870" y1="740" x2="650" y2="778" stroke="#0f9d6e" stroke-width="1.5"/>
+
+  <rect x="350" y="780" width="500" height="48" rx="12" fill="url(#gBus)"/>
+  <text x="600" y="799" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="700">EventBus（asyncio.Queue）— 单一汇聚点</text>
+  <text x="600" y="818" text-anchor="middle" fill="rgba(241,245,249,.6)" font-size="9.5">SSE Generator 只读 EventBus · 跨进程时 Redis 为额外低延迟路径</text>
+
+  <line x1="600" y1="828" x2="600" y2="860" stroke="#f1f5f9" stroke-width="2" marker-end="url(#aD)"/>
+
+  <!-- ===== 7 SSE GENERATOR ===== -->
+  <rect x="220" y="862" width="760" height="104" rx="12" fill="url(#gB)"/>
+  <text x="600" y="885" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="700">SSE Generator（GET /api/agent/runs/{id}/stream）</text>
+  <text x="600" y="905" text-anchor="middle" fill="rgba(255,255,255,.8)" font-size="10.5">① 重放：_events_after(after_seq) 逐条发送（30ms/条）→ ② 队列直发：seq 递增去重</text>
+  <text x="600" y="923" text-anchor="middle" fill="rgba(255,255,255,.8)" font-size="10.5">③ 每轮查 AgentRun.status：终态 {succeeded, failed, cancelled, completed} → 终态补齐 + break</text>
+  <text x="600" y="941" text-anchor="middle" fill="rgba(255,255,255,.8)" font-size="10.5">④ queue 阻塞 30s 超时 → ":keepalive" + 补偿查询 _events_after（单次 ≤200 条）</text>
+  <text x="600" y="958" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="9.5">Cookie 鉴权 + CSRF origin 校验 · Cache-Control: no-cache</text>
+
+  <line x1="600" y1="966" x2="600" y2="996" stroke="#3d5afe" stroke-width="2" marker-end="url(#aB)"/>
+
+  <!-- ===== 8 FRONTEND HOOK ===== -->
+  <rect x="240" y="998" width="720" height="92" rx="12" fill="url(#gF)"/>
+  <text x="600" y="1019" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="700">useRunEventStream（EventSource + after_seq 续传）</text>
+  <text x="600" y="1039" text-anchor="middle" fill="rgba(255,255,255,.75)" font-size="10.5">handleMessage → parseStreamEvent → reduceRunStream → stateRef.current 累积</text>
+  <text x="600" y="1057" text-anchor="middle" fill="rgba(255,255,255,.75)" font-size="10.5">RAF 帧合并（≤1 pending）→ setState ≈ 60 次/s</text>
+  <text x="600" y="1075" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="9.5">onopen → liveStreamed=true · 重连退避 1s→5s ×8 · 15s 连接超时 · onerror → 终态 reconciliation（getRun 合并）</text>
+  <text x="600" y="1088" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="9.5">run 终态才关闭 EventSource（answer_completed 不关）</text>
+
+  <line x1="600" y1="1090" x2="600" y2="1118" stroke="#3d5afe" stroke-width="2" marker-end="url(#aB)"/>
+
+  <!-- ===== 9 COMPONENT TREE ===== -->
+  <rect x="100" y="1120" width="1000" height="112" rx="12" fill="url(#gF)" opacity=".88"/>
+  <text x="600" y="1140" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">前端组件树</text>
+  <text x="600" y="1160" text-anchor="middle" fill="rgba(255,255,255,.72)" font-size="10.5">SessionConversationStream → SessionTurn → ThoughtNarrative（useTypingText）</text>
+  <text x="600" y="1178" text-anchor="middle" fill="rgba(255,255,255,.72)" font-size="10.5">→ FinalAnswerPanel → ProgressiveMarkdown</text>
+  <text x="600" y="1196" text-anchor="middle" fill="rgba(255,255,255,.72)" font-size="10.5">├─ CompletedBlock（React.memo · stable key · 永不重解析）</text>
+  <text x="600" y="1214" text-anchor="middle" fill="rgba(255,255,255,.72)" font-size="10.5">└─ StreamingTail（RAF 打字动画 20ms/字符 · terminal 且 wasLiveStreamed 时播放后切换）</text>
+  <text x="600" y="1228" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="9">SafeMarkdown：react-markdown + remarkGfm · skipHtml · URL 安全 · 表格/代码滚动 · 会话页 reconcileSession 警告</text>
+
+  <line x1="600" y1="1232" x2="600" y2="1258" stroke="#d96313" stroke-width="2" marker-end="url(#aO)"/>
+
+  <!-- ===== 10 BROWSER ===== -->
+  <rect x="475" y="1260" width="250" height="36" rx="10" fill="url(#gU)"/>
+  <text x="600" y="1283" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">浏览器绘制 → 用户可见</text>
+</svg>
+</div>
+
+<!-- ============ 1 CHANNELS ============ -->
+<div class="grid">
+
+  <div class="card">
+    <h2><span class="num">1</span>事件通道（两条，实测）</h2>
+    <p class="lead">Worker 进程内所有事件经 EventBus 微秒级直发；Redis Streams 提供跨进程低延迟路径。SSE Generator 统一从 EventBus 读取。</p>
+
+    <div class="channel ch-green">
+      <span class="dot"></span>
+      <div>
+        <b>通道 ② EventBus（同进程）<span class="tag tag-green">主通道 · 微秒级</span></b>
+        <p>Worker 与 SSE 同进程时，<code>event_bus.publish(EventItem)</code> 将完整 payload 放入 <code>asyncio.Queue</code>，SSE 直读直发。零网络、零数据库查询。<strong>所有事件均经过</strong>，包括成功终态。</p>
+      </div>
+    </div>
+
+    <div class="channel ch-red">
+      <span class="dot"></span>
+      <div>
+        <b>通道 ① Redis Streams（XADD / XREADGROUP）<span class="tag tag-red">跨进程 · 批量</span></b>
+        <p>非 Pub/Sub。<code>_batch_flush_loop</code> 每 <strong>32ms</strong> 或累积 <strong>20 条</strong> pipeline XADD 至固定 stream <code>agent:events</code>（maxlen 10000）；<code>_subscribe_loop</code> XREADGROUP 消费后注入 EventBus。</p>
+        <p>覆盖 <code>_persist_and_notify</code>（普通事件）与 <code>_persist_terminal_and_notify</code>（失败/取消终态）。<strong>成功终态由 <code>_persist_successful_completion</code> 直发 EventBus，不经 Redis</strong>，由 30s 补偿查询兜底。</p>
+      </div>
+    </div>
+
+    <div class="channel ch-amber">
+      <span class="dot"></span>
+      <div>
+        <b>PostgreSQL NOTIFY（任务唤醒）<span class="tag tag-amber">独立用途</span></b>
+        <p>创建 run 时 <code>pg_notify("new_run", run_id)</code>，Worker 端 asyncpg LISTEN 置位唤醒事件立即抢任务。仅负责调度，<strong>不参与事件流</strong>。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 EVENTS ============ -->
+  <div class="card">
+    <h2><span class="num">2</span>事件类型全景</h2>
+    <p class="lead">事件落库 <code>agent_run_events</code>，以单调递增 <code>seq</code> 排序；前端按 seq 去重续传。</p>
+    <table>
+      <thead><tr><th>事件</th><th>触发</th><th>通道</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ev">run_queued</span></td><td>Attempt 创建</td><td><span class="chips"><span class="pill p-gray">—</span></span></td></tr>
+        <tr><td><span class="ev">run_started</span></td><td>Worker 接管任务</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">plan_started</span> / <span class="ev">plan_completed</span></td><td>两步规划起止</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">plan_created</span></td><td>计划校验通过</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">visible_thought_started</span></td><td>思考流开始</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">visible_thought_delta</span></td><td><strong>每个 token</strong></td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">visible_thought_paused</span></td><td>工具执行前</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">tool_started</span> / <span class="ev">tool_completed</span></td><td>工具执行起止</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">visible_thought_completed</span></td><td>思考流结束</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">answer_started</span></td><td>答案流开始</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">answer_delta</span></td><td><strong>20ms 批量</strong>（多 token 合并）</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">answer_checkpoint</span></td><td>256 字 / 0.4s 落点</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">answer_completed</span></td><td>答案流结束（双发：流结束 + 原子终态）</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span><span class="pill p-gray">第2次仅EventBus</span></span></td></tr>
+        <tr><td><span class="ev">step_completed</span></td><td>步骤完成</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span><span class="pill p-gray">finish路径仅EventBus</span></span></td></tr>
+        <tr><td><span class="ev">run_succeeded</span></td><td>原子终态（单事务写 attempt + run + result）</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-gray">无Redis</span></span></td></tr>
+        <tr><td><span class="ev">run_failed</span></td><td>异常 / 超时 / 步骤耗尽</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+        <tr><td><span class="ev">run_cancelled</span></td><td>用户取消</td><td><span class="chips"><span class="pill p-green">EventBus</span><span class="pill p-red">Redis</span></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ 3 ANSWER TIMELINE ============ -->
+  <div class="card">
+    <h2><span class="num">3</span>answer_delta 批处理时间线</h2>
+    <p class="lead">答案流不按 token 逐发：先合并、再落库、再双通道通知。</p>
+    <div class="flow">
+      <span class="step">LLM token 到达<br><em>逐 token 追加 pending_chunks</em></span>
+      <span class="arr">→</span>
+      <span class="step red">20ms 窗口合并<br><em>flush_interval=0.02</em></span>
+      <span class="arr">→</span>
+      <span class="step hot">append_event(INSERT)</span>
+      <span class="arr">→</span>
+      <span class="step red">Redis 批缓冲<br><em>32ms / 20条</em></span>
+      <span class="arr">→</span>
+      <span class="step">session.commit()</span>
+      <span class="arr">→</span>
+      <span class="step green">EventBus 直发<br><em>微秒级</em></span>
+    </div>
+    <h3>流控参数</h3>
+    <div class="const-grid">
+      <div class="const"><div class="k">DELTA 合并窗口</div><div class="v">20ms</div><div class="d">代码常量（loop.py）</div></div>
+      <div class="const"><div class="k">CHECKPOINT 落点</div><div class="v">256 字 / 0.4s</div><div class="d">崩溃后从最近落点续传</div></div>
+      <div class="const"><div class="k">Redis 批窗口</div><div class="v">32ms / 20 条</div><div class="d">agent_redis_batch_*</div></div>
+      <div class="const"><div class="k">Redis Stream</div><div class="v">agent:events</div><div class="d">maxlen 10000</div></div>
+    </div>
+    <h3>成功终态（原子提交）</h3>
+    <p><code>_persist_successful_completion</code> 在<strong>同一事务</strong>内写：answer_completed · step_completed · attempt→succeeded · run→succeeded · <code>run.result</code>（final_answer + source_event_sequence）。三个 EventItem 发布后直发 EventBus，<strong>不经 Redis 批缓冲</strong>。</p>
+  </div>
+
+  <!-- ============ 4 SSE GENERATOR ============ -->
+  <div class="card">
+    <h2><span class="num">4</span>SSE Generator 行为</h2>
+    <p class="lead"><code>GET /api/agent/runs/{id}/stream</code> — Cookie 鉴权 + CSRF origin 校验。</p>
+    <ol>
+      <li><strong>重放</strong>：按 <code>last-event-id</code> / <code>after_seq</code> 调用 <code>_events_after</code> 逐条发送（每条间隔 30ms）；</li>
+      <li><strong>直发</strong>：EventBus 队列取出，仅当 <code>seq &gt; lastSeenSeq</code> 发送（天然去重，无 gap 检测）；</li>
+      <li><strong>终态判定</strong>：每轮循环查询 <code>AgentRun.status</code> ∈ {succeeded, failed, cancelled, completed}，命中则补齐剩余事件后 break 关闭；</li>
+      <li><strong>心跳</strong>：队列阻塞 30s 超时 → 发送 <code>:keepalive</code> + 补偿查询 <code>_events_after</code>（单次 ≤200 条）。</li>
+    </ol>
+    <h3>前端重连协议</h3>
+    <div class="const-grid">
+      <div class="const"><div class="k">续传游标</div><div class="v">after_seq</div><div class="d">重连不丢事件</div></div>
+      <div class="const"><div class="k">重连退避</div><div class="v">1s → 5s ×8 次</div><div class="d">之后 connection: failed</div></div>
+      <div class="const"><div class="k">连接超时</div><div class="v">15s</div><div class="d">CONNECTING 阶段</div></div>
+      <div class="const"><div class="k">关闭条件</div><div class="v">run 终态</div><div class="d">answer_completed 不关闭</div></div>
+    </div>
+    <h3>断线兜底（Reconciliation）</h3>
+    <p>onerror 且 run 非终态 → <code>performReconciliation</code>：REST <code>getRun</code> 拉取最新状态合并（已有流式文本时跳过覆盖）；终态则关闭连接并通知。会话页另有 <code>reconcileSession</code> + 警告 Alert。</p>
+  </div>
+
+  <!-- ============ 5 WORKER ============ -->
+  <div class="card">
+    <h2><span class="num">5</span>Worker 生命周期</h2>
+    <p class="lead">FastAPI 进程内常驻后台任务（单进程开发环境 = 同进程 EventBus 直通）。</p>
+    <div class="flow">
+      <span class="step">run()</span><span class="arr">→</span>
+      <span class="step">LISTEN "new_run"</span><span class="arr">→</span>
+      <span class="step">_claim_and_execute</span><span class="arr">→</span>
+      <span class="step hot">_do_process_attempt</span><span class="arr">→</span>
+      <span class="step green">_persist_successful_completion</span>
+    </div>
+    <ul>
+      <li><strong>两步规划</strong>：LLM 流式收集全文 → <code>_parse_json_content</code> 解析，失败则 JSON mode <code>create_plan</code> 重试 → Pydantic 校验 → <code>plan_created</code>；</li>
+      <li><strong>租约</strong>：每 <code>lease/3</code> 秒续期（lease=60s），<code>_recover_expired</code> 回收过期任务；</li>
+      <li><strong>异常分类</strong>：<code>classify_agent_failure</code>（deepseek_auth_error / deepseek_config_error / deepseek_timeout / worker_unhandled_error），可重试类最多 3 次；</li>
+      <li><strong>超时</strong>：<code>run_timeout_seconds=120</code> → run_failed；步骤数耗尽 → run_failed（max_steps_exceeded）。</li>
+    </ul>
+  </div>
+
+  <!-- ============ 6 FRONTEND ============ -->
+  <div class="card">
+    <h2><span class="num">6</span>前端渲染链路</h2>
+    <p class="lead">SSE → 内存累积 → 每帧一次 React 更新 → 增量 Markdown。</p>
+    <div class="flow">
+      <span class="step">SSE 事件</span><span class="arr">→</span>
+      <span class="step">reduceRunStream(stateRef)</span><span class="arr">→</span>
+      <span class="step red">RAF 帧合并 ≈60次/s</span><span class="arr">→</span>
+      <span class="step hot">setState(完整快照)</span><span class="arr">→</span>
+      <span class="step">ProgressiveMarkdown</span>
+    </div>
+    <ul>
+      <li><strong>CompletedBlock</strong>：已完成块（空行 / 代码围栏 / 表格边界切分）React.memo + stable key，永不重解析；</li>
+      <li><strong>StreamingTail</strong>：活跃尾部 RAF 打字动画（20ms/字符）；终态且 <code>wasLiveStreamed</code> 时先打字播放、结束后切换为完整渲染；</li>
+      <li><strong>liveStreamed</strong>：由 <code>eventSource.onopen</code> 置位，用于区分历史答案（直接渲染）与实时流式答案（打字动画）；</li>
+      <li><strong>ThoughtNarrative</strong>：思维区以 <code>narrativeEvents</code> 驱动，useTypingText 打字呈现；</li>
+      <li><strong>PERF 日志</strong>：answer_completed / run_succeeded 时输出性能摘要（事件数 / 帧数 / 重连数 / 答案长度）。</li>
+    </ul>
+  </div>
+
+  <!-- ============ 7 CONFIG ============ -->
+  <div class="card full">
+    <h2><span class="num">7</span>关键配置</h2>
+    <p class="lead">有效配置项（.env / config.py）——标注为"代码常量"者为硬编码，不在配置文件中。</p>
+    <table>
+      <thead><tr><th>配置</th><th>默认值</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>agent_redis_pubsub_enabled</code></td><td>true</td><td>Redis 通道总开关（lifespan 中创建 RedisBridge 并订阅）</td></tr>
+        <tr><td><code>agent_redis_batch_window_ms</code> / <code>agent_redis_batch_max_size</code></td><td>32 / 20</td><td>Redis 批缓冲窗口与条数</td></tr>
+        <tr><td><code>worker_poll_interval_seconds</code> / <code>worker_lease_seconds</code> / <code>worker_concurrency</code></td><td>1.0 / 60 / 3</td><td>Worker 扫描间隔、租约（lease/3 续期）、并发数</td></tr>
+        <tr><td><code>max_retry_attempts</code></td><td>3</td><td>可重试失败的最大重试次数</td></tr>
+        <tr><td><code>run_timeout_seconds</code> / <code>step_timeout_seconds</code> / <code>http_timeout_seconds</code></td><td>120 / 30 / 25</td><td>Run / 步骤 / LLM 请求超时</td></tr>
+        <tr><td><code>deepseek_model</code> / <code>deepseek_base_url</code></td><td>deepseek-chat / api.deepseek.com</td><td>LLM 模型与端点</td></tr>
+        <tr><td><code>redis_url</code></td><td>redis://localhost:6379/0</td><td>Redis 连接串</td></tr>
+        <tr><td><span class="pill p-gray">代码常量</span> DELTA 窗口 / CHECKPOINT / SSE 心跳 / 重放间隔</td><td>20ms / 256字·0.4s / 30s / 30ms</td><td>硬编码于 loop.py 与 agent_stream.py</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "dsh-platform",
+  "private": true,
+  "type": "module",
+  "description": "Platform plugins for the per-user DeepSeek Harness instances (vendor and plugin workspace)",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r --workspace-concurrency=1 run build"
+  }
+}

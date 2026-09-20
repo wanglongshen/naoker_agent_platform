@@ -1,0 +1,6 @@
+# naoker platform connector bundle patch: inserts the connector into the profile layer stack.
+# The per-instance `config` (platformBase/userId/platformToken) is later
+# overridden by $DSH_HOME/profiles/web/cordis.patch.yml under the same id.
+- insert:
+    - id: naoker-platform-connector
+      name: '@naoker/dsh-platform-connector'

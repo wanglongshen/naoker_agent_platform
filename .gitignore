@@ -1,0 +1,17 @@
+.env
+.superpowers/
+.runtime/
+__pycache__/
+.pytest_cache/
+.venv/
+backend/.venv/
+frontend/node_modules/
+node_modules/
+frontend/.next/
+.idea/
+backend/.env.test-backup
+var/kb_industry/
+deepseek-harness/node_modules/
+deepseek-harness/.git/
+# deepseek-harness 快照本体是受控要提交的源码目录，node_modules 除外
+backend/var/rag/

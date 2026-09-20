@@ -1,0 +1,211 @@
+name: agent
+
+networks:
+  agent-net:
+    driver: bridge
+
+volumes:
+  agent-pgdata:
+  agent-redisdata:
+  agent-files:
+  agent-dsh:
+
+services:
+  postgres:
+    # pgvector/pgvector:pg16 = PostgreSQL 16 + vector 扩展（RAG 检索）
+    image: pgvector/pgvector:pg16
+    container_name: agent-postgres
+    restart: unless-stopped
+    mem_limit: 640m
+    # 容器 /dev/shm 默认 64MB，PG 并行写库会打爆（shared memory crash）
+    shm_size: 256m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # 挂载父目录（数据在 /var/lib/postgresql/data）；从 PG18 卷切到 pg16 时
+      # 容器会对空 data/ 重新 initdb，数据由 deploy.sh 从 data/rbac.dump 恢复
+      - agent-pgdata:/var/lib/postgresql
+    networks: [agent-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7
+    container_name: agent-redis
+    restart: unless-stopped
+    mem_limit: 128m
+    volumes:
+      - agent-redisdata:/data
+    networks: [agent-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: agent-backend
+    restart: unless-stopped
+    mem_limit: 768m
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      WEB_RENDERER_URL: ${WEB_RENDERER_URL}
+      WEB_RENDERER_HEADLESS: ${WEB_RENDERER_HEADLESS}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY}
+      DSH_INSTANCE_MODE: ${DSH_INSTANCE_MODE:-vendored}
+      DSH_HOME_ROOT: ${DSH_HOME_ROOT:-/app/backend/var/dsh}
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-localhost:8000}
+      DSH_PLATFORM_BASE: ${DSH_PLATFORM_BASE:-http://backend:8000}
+    volumes:
+      - agent-files:/app/backend/var
+      - agent-dsh:/app/backend/var/dsh
+    networks: [agent-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${BE_PORT}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: agent-worker
+    restart: unless-stopped
+    mem_limit: 256m
+    env_file: .env
+    environment:
+      DSH_INSTANCE_MODE: ${DSH_INSTANCE_MODE:-vendored}
+      DSH_HOME_ROOT: ${DSH_HOME_ROOT:-/app/backend/var/dsh}
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-localhost:8000}
+      DSH_PLATFORM_BASE: ${DSH_PLATFORM_BASE:-http://backend:8000}
+    command: ["python", "-m", "app.workers.agent_worker"]
+    volumes:
+      - agent-files:/app/backend/var
+      - agent-dsh:/app/backend/var/dsh
+    networks: [agent-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  task-chain-worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: agent-task-chain-worker
+    restart: unless-stopped
+    # 任务链会 spawn DSH headless（node）子进程，内存留量高于普通 worker
+    mem_limit: 384m
+    env_file: .env
+    environment:
+      DSH_INSTANCE_MODE: ${DSH_INSTANCE_MODE:-vendored}
+      DSH_HOME_ROOT: ${DSH_HOME_ROOT:-/app/backend/var/dsh}
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-localhost:8000}
+      DSH_PLATFORM_BASE: ${DSH_PLATFORM_BASE:-http://backend:8000}
+    command: ["python", "-m", "app.workers.task_chain_worker"]
+    volumes:
+      - agent-files:/app/backend/var
+      - agent-dsh:/app/backend/var/dsh
+    networks: [agent-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  dsh-sync-worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: agent-dsh-sync-worker
+    restart: unless-stopped
+    mem_limit: 256m
+    env_file: .env
+    environment:
+      DSH_INSTANCE_MODE: ${DSH_INSTANCE_MODE:-vendored}
+      DSH_HOME_ROOT: ${DSH_HOME_ROOT:-/app/backend/var/dsh}
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-localhost:8000}
+      DSH_PLATFORM_BASE: ${DSH_PLATFORM_BASE:-http://backend:8000}
+    command: ["python", "-m", "app.workers.dsh_sync_worker"]
+    volumes:
+      - agent-files:/app/backend/var
+      - agent-dsh:/app/backend/var/dsh
+    networks: [agent-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web-renderer:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: agent-web-renderer
+    restart: unless-stopped
+    mem_limit: 384m
+    environment:
+      DSH_INSTANCE_MODE: ${DSH_INSTANCE_MODE:-vendored}
+      DSH_HOME_ROOT: ${DSH_HOME_ROOT:-/app/backend/var/dsh}
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-localhost:8000}
+      DSH_PLATFORM_BASE: ${DSH_PLATFORM_BASE:-http://backend:8000}
+    command: ["python", "-m", "app.workers.web_renderer"]
+    volumes:
+      - agent-dsh:/app/backend/var/dsh
+    networks: [agent-net]
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    container_name: agent-frontend
+    restart: unless-stopped
+    mem_limit: 256m
+    env_file: .env
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    networks: [agent-net]
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FE_PORT}:3000"
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: agent-migrate
+    env_file: .env
+    command: ["alembic", "upgrade", "head"]
+    volumes:
+      - agent-files:/app/backend/var
+    networks: [agent-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"

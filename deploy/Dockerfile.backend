@@ -1,0 +1,68 @@
+# syntax=docker/dockerfile:1
+
+# ---- vendored DSH 构建阶段（deepseek-harness CLI + dsh-platform connector）----
+# 上游 engines 要求 node ^22.19.0 || >=24.0.0（deepseek-harness/package.json），
+# 故用 node:22 而不是 Debian bookworm 的 nodejs 18；pnpm 钉死 11.7.0 与上游
+# packageManager 一致（dsh-platform 无 packageManager 字段，corepack 会取浮动默认版本）。
+FROM node:22-bookworm-slim AS dsh-build
+RUN npm install -g pnpm@11.7.0
+WORKDIR /build
+COPY deepseek-harness/ deepseek-harness/
+COPY dsh-platform/ dsh-platform/
+# 非 git 构建环境：client 构建要求提交哈希（scripts/client-build-environment.ts），
+# 取 vendored 清单 sha（deepseek-harness/.dsh-vendor.json）
+RUN cd deepseek-harness \
+    && export DSH_CLIENT_COMMIT_HASH="$(node -p 'require("./.dsh-vendor.json").sha')" \
+    && pnpm install --frozen-lockfile \
+    && pnpm run build
+# dsh-platform 无根 lockfile / workspace 清单，connector 自带 lockfile，按包目录构建
+RUN cd dsh-platform/packages/server-connector \
+    && pnpm install --frozen-lockfile \
+    && pnpm run build
+
+FROM python:3.13-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+        libxml2 \
+        libxslt1.1 \
+        libjpeg62-turbo \
+        libwebp7 \
+        libtiff6 \
+        fonts-liberation \
+        libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+COPY backend/requirements.txt ./
+RUN pip install -r requirements.txt
+
+COPY backend/ ./
+
+# patchright bundled chromium（Linux 默认 channel=None 走 bundled chromium）
+# 浏览器二进制走国内镜像加速（patchright 与 playwright 兼容该变量；下载失败不阻断构建）
+RUN PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright \
+    python -m patchright install chromium || true
+
+# ---- vendored DSH 运行时 ----
+# Node 22 二进制：bookworm 的 nodejs 是 18，不满足上游 engines（^22.19 || >=24）；
+# 两阶段同为 Debian bookworm，二进制可直接搬（libstdc++6 已在上面 apt 安装）
+COPY --from=dsh-build /usr/local/bin/node /usr/local/bin/node
+# `dsh plugin add` 运行期转发 pnpm（deepseek-harness/apps/cli/src/plugin.ts），
+# 必须随镜像带 pnpm（只搬包体 + 重建 bin 链接，不带 npm/corepack）
+COPY --from=dsh-build /usr/local/lib/node_modules/pnpm /usr/local/lib/node_modules/pnpm
+RUN ln -s ../lib/node_modules/pnpm/bin/pnpm.mjs /usr/local/bin/pnpm \
+    && chmod +x /usr/local/lib/node_modules/pnpm/bin/pnpm.mjs
+
+# repo_root=/app：backend 的 DSH 服务按 `Path(__file__).parents[4]` 定位 vendored 产物
+COPY --from=dsh-build /build/deepseek-harness /app/deepseek-harness
+COPY --from=dsh-build /build/dsh-platform /app/dsh-platform
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

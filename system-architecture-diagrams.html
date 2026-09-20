@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>企业智助 — 系统架构全景图</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "neutral",
+      flowchart: { htmlLabels: true, curve: "basis", useMaxWidth: true },
+      er: { useMaxWidth: true },
+      journey: { useMaxWidth: true },
+      sequence: { useMaxWidth: true, mirrorActors: false }
+    });
+  </script>
+  <style>
+    :root {
+      --primary: #D96313; --bg: #FAF7F3; --surface: #FFFFFF;
+      --text: #172033; --text-secondary: #526078; --border: #d9e0ea;
+      --radius: 12px; --shadow: 0 2px 10px rgba(23,32,51,0.05);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      max-width: 1600px; margin: 0 auto; padding: 32px;
+      background: var(--bg); color: var(--text);
+      font: 15px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    h1 { font-size: 30px; margin-bottom: 2px; }
+    h2 { font-size: 23px; margin: 48px 0 16px; padding-top: 24px; border-top: 2px solid var(--primary); }
+    h3 { font-size: 18px; margin: 32px 0 12px; color: var(--primary); }
+    .subtitle { color: var(--text-secondary); margin-bottom: 32px; font-size: 14px; }
+    .diagram {
+      overflow: auto; padding: 24px; margin-bottom: 24px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface); box-shadow: var(--shadow);
+    }
+    .diagram-row { display: flex; gap: 20px; flex-wrap: wrap; }
+    .diagram-row .diagram { flex: 1; min-width: 420px; }
+    .callout {
+      background: #fef9f4; border-left: 4px solid var(--primary); padding: 12px 16px;
+      border-radius: 0 8px 8px 0; margin-bottom: 20px; font-size: 14px;
+    }
+    .badge { display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin:0 2px; }
+    .badge.frontend { background:#e8f0fd; color:#4F6BFF; }
+    .badge.backend { background:#fef3e8; color:#D96313; }
+    .badge.db { background:#e8fdf0; color:#16a34a; }
+    .badge.external { background:#f3f0ea; color:#555; }
+    .badge.critical { background:#fde8e8; color:#c24141; }
+    table.spec { width:100%;font-size:13px;border-collapse:collapse;margin:8px 0; }
+    table.spec th { text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);background:#faf7f5;font-size:12px;text-transform:uppercase; }
+    table.spec td { padding:8px 10px;border-bottom:1px solid #f0ece8; }
+    table.spec tr:hover td { background:rgba(217,99,19,0.02); }
+    .toc { columns:2; column-gap:40px; margin-bottom:32px; font-size:14px; }
+    .toc a { color:var(--primary); text-decoration:none; display:block; padding:3px 0; }
+    .toc a:hover { text-decoration:underline; }
+    .legend { font-size:12px; color:var(--text-secondary); margin-top:6px; }
+    .footer { margin-top:64px;padding-top:24px;border-top:1px solid var(--border);color:var(--text-secondary);font-size:13px;text-align:center; }
+    code { background:#f5f2ee; padding:1px 5px; border-radius:3px; font-size:13px; }
+    .stat-grid { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+    .stat-card { flex:1; min-width:140px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; }
+    .stat-card .num { font-size:28px; font-weight:700; color:var(--primary); }
+    .stat-card .label { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+  </style>
+</head>
+<body>
+
+<h1>企业智助 — 系统架构全景图</h1>
+<p class="subtitle">
+  全面逆向分析 · 基于源码逐行阅读 · 2026年7月28日<br>
+  <span class="badge frontend">Next.js 16 + React 19 + Ant Design 6</span>
+  <span class="badge backend">FastAPI + Python 3</span>
+  <span class="badge db">PostgreSQL 16</span>
+  <span class="badge external">DeepSeek LLM + Tavily 搜索</span>
+</p>
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="num">42</div><div class="label">API 端点</div></div>
+  <div class="stat-card"><div class="num">13</div><div class="label">数据库表</div></div>
+  <div class="stat-card"><div class="num">8</div><div class="label">前端路由</div></div>
+  <div class="stat-card"><div class="num">23</div><div class="label">Agent 组件</div></div>
+  <div class="stat-card"><div class="num">13</div><div class="label">权限定义</div></div>
+  <div class="stat-card"><div class="num">22</div><div class="label">事件类型</div></div>
+  <div class="stat-card"><div class="num">2</div><div class="label">预置角色</div></div>
+  <div class="stat-card"><div class="num">5</div><div class="label">工具动作</div></div>
+</div>
+
+<div class="callout">
+  <strong>项目定位：</strong>私有 AI 工作空间 + RBAC 管理台。用户通过 Agent 对话与 DeepSeek 大模型交互，模型可调用 Tavily 联网搜索、HTTP 请求、计算器等工具。配备完整的用户/角色/权限管理体系。以下为 20 张专业架构图。
+</div>
+
+<div class="toc">
+  <a href="#s1">1. 系统拓扑总览</a>
+  <a href="#s2">2. 数据库完整 ER 图</a>
+  <a href="#s3">3. 前端路由与组件树</a>
+  <a href="#s4">4. 后端 API 全景图（42个端点）</a>
+  <a href="#s5">5. 认证与 RBAC 鉴权流程</a>
+  <a href="#s6">6. Agent 执行循环（核心引擎）</a>
+  <a href="#s7">7. SSE 事件流与实时推送</a>
+  <a href="#s8">8. Worker 后台调度架构</a>
+  <a href="#s9">9. 完整权限模型</a>
+  <a href="#s10">10. 全系统数据流（时序图）</a>
+  <a href="#s11">11. Agent 执行步骤详解</a>
+  <a href="#s12">12. 前端状态管理策略</a>
+  <a href="#s13">13. 文件上传与存储架构</a>
+  <a href="#s14">14. 数据保留与清理策略</a>
+  <a href="#s15">15. 安全防护矩阵</a>
+  <a href="#s16">16. 事件类型完整清单</a>
+  <a href="#s17">17. 工具执行引擎详解</a>
+  <a href="#s18">18. 错误分类与重试策略</a>
+  <a href="#s19">19. 技术栈全景</a>
+  <a href="#s20">20. 关键设计决策</a>
+</div>
+
+<!-- ======== 1 ======== -->
+<h2 id="s1">1. 系统拓扑总览</h2>
+<div class="diagram mermaid">
+flowchart TB
+    subgraph BROWSER["🌐 浏览器"]
+        FE["Next.js 16 SPA<br/>React 19 + Ant Design 6<br/>:3000 端口"]
+    end
+
+    subgraph BACKEND["⚙️ FastAPI 后端 :8000"]
+        direction TB
+        MW["RequestId + CORS 中间件"]
+        AUTH_API["/api/auth 认证"]
+        USER_API["/api/users 用户管理"]
+        ROLE_API["/api/roles + /api/permissions"]
+        AGENT_API["/api/agent 会话·运行·附件"]
+        STREAM_API["SSE: /api/agent/runs/{id}/stream"]
+        AUDIT_API["/api/agent/audit 超管审计"]
+        MW --> AUTH_API & USER_API & ROLE_API & AGENT_API & STREAM_API & AUDIT_API
+    end
+
+    subgraph WORKERS["🔧 后台进程"]
+        AGENT_W["AgentWorker<br/>租约 + 并发执行"]
+        MAINT_W["MaintenanceWorker<br/>每日数据清理"]
+        LISTENER["PostgresEventListener<br/>LISTEN/NOTIFY 桥接"]
+    end
+
+    subgraph DATA["💾 数据层"]
+        PG[(PostgreSQL 16)]
+        FS["本地文件系统<br/>./var/agent · ./var/files"]
+    end
+
+    subgraph EXTERNAL["☁️ 外部服务"]
+        DEEPSEEK["DeepSeek Chat API<br/>deepseek-chat"]
+        TAVILY["Tavily Search API"]
+    end
+
+    FE <-->|"HTTP + Cookie JWT"| BACKEND
+    FE -->|"EventSource SSE"| STREAM_API
+    BACKEND <--> PG
+    AGENT_W <--> PG
+    AGENT_W --> DEEPSEEK
+    AGENT_W --> TAVILY
+    AGENT_W --> FS
+    MAINT_W --> PG & FS
+    LISTENER <--> PG
+    LISTENER --> AGENT_W
+</div>
+
+<!-- ======== 2 ======== -->
+<h2 id="s2">2. 数据库完整 ER 图</h2>
+<div class="diagram mermaid">
+erDiagram
+    users ||--o{ user_roles : "user_id"
+    roles ||--o{ user_roles : "role_id"
+    roles ||--o{ role_permissions : "role_id"
+    permissions ||--o{ role_permissions : "permission_id"
+    users ||--o{ agent_sessions : "owner_user_id RESTRICT"
+    users ||--o{ agent_attachments : "owner_user_id RESTRICT"
+    agent_sessions ||--o{ agent_runs : "composite FK"
+    agent_sessions ||--o{ agent_attachments : "session_id CASCADE"
+    agent_runs ||--o{ agent_run_attempts : "run_id CASCADE"
+    agent_runs ||--o{ agent_run_events : "run_id CASCADE"
+    agent_runs ||--o{ agent_run_attachments : "run_id CASCADE"
+    agent_run_attempts ||--o{ agent_steps : "attempt_id CASCADE"
+    agent_run_attempts ||--o{ agent_run_events : "attempt_id SET NULL"
+    agent_attachments ||--o{ agent_run_attachments : "attachment_id CASCADE"
+
+    users {
+        uuid id PK
+        varchar username UK "3-64"
+        varchar display_name "1-128"
+        varchar password_hash "255 Argon2"
+        varchar email UK nullable
+        varchar phone UK nullable
+        varchar status "active·disabled"
+        boolean is_deleted
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    roles {
+        uuid id PK
+        varchar code UK
+        varchar name UK
+        text description nullable
+        varchar status
+        boolean is_system "不可变"
+        boolean is_deleted "软删除"
+        int sort_order
+        timestamptz created_at updated_at
+    }
+
+    permissions {
+        uuid id PK
+        varchar code UK "例 user:read"
+        varchar name UK
+        text description nullable
+        varchar status
+        varchar module "user·role"
+        int sort_order
+        boolean is_system
+    }
+
+    user_roles {
+        uuid user_id PK_FK
+        uuid role_id PK_FK
+    }
+
+    role_permissions {
+        uuid role_id PK_FK
+        uuid permission_id PK_FK
+    }
+
+    agent_sessions {
+        uuid id PK
+        uuid owner_user_id FK
+        text title nullable
+        uuid last_run_id nullable
+        timestamptz created_at updated_at
+    }
+
+    agent_runs {
+        uuid id PK
+        uuid session_id FK
+        uuid owner_user_id FK
+        text goal
+        varchar mode "quick·expert"
+        boolean network_enabled
+        varchar status "7种 CK"
+        int max_steps "1-200 CK"
+        uuid current_attempt_id nullable
+        json result nullable
+        timestamptz created_at updated_at
+    }
+
+    agent_run_attempts {
+        uuid id PK
+        uuid run_id FK_CASCADE
+        int attempt_number UK_pair
+        varchar status "8种"
+        varchar worker_id nullable
+        timestamptz claimed_at lease_expires_at nullable
+        timestamptz started_at finished_at nullable
+        varchar failure_code nullable
+        uuid retry_of_attempt_id nullable
+        timestamptz not_before nullable "调度延迟"
+        timestamptz created_at updated_at
+    }
+
+    agent_steps {
+        uuid id PK
+        uuid attempt_id FK_CASCADE
+        int step_number UK_pair
+        text thought_summary nullable
+        varchar action_type nullable
+        json action_payload nullable
+        json observation nullable
+        varchar status
+        timestamptz created_at
+    }
+
+    agent_run_events {
+        uuid id PK
+        uuid run_id FK_CASCADE
+        uuid attempt_id FK_SETNULL nullable
+        bigint seq "自增序列"
+        varchar event_type "22种"
+        json payload
+        timestamptz created_at
+    }
+
+    agent_attachments {
+        uuid id PK
+        uuid owner_user_id FK
+        uuid session_id FK_CASCADE
+        varchar storage_key filename "512"
+        varchar original_filename "512"
+        varchar media_type "128"
+        int size_bytes
+        varchar sha256 "64"
+        varchar extraction_status "ready·pending·rejected"
+        text extracted_text nullable
+        timestamptz expires_at "90天"
+        timestamptz created_at updated_at
+    }
+
+    agent_run_attachments {
+        uuid run_id PK_FK_CASCADE
+        uuid attachment_id PK_FK_CASCADE
+    }
+
+    agent_retention_jobs {
+        uuid id PK
+        varchar job_type "64"
+        timestamptz started_at completed_at nullable
+        json stats
+        text error_summary nullable
+    }
+</div>
+
+<!-- ======== 3 ======== -->
+<h2 id="s3">3. 前端路由与组件树</h2>
+<div class="diagram-row">
+  <div class="diagram mermaid">
+flowchart TD
+    ROOT["/ (redirect → /login)"]
+    LOGIN["/login LoginForm 品牌+表单"]
+    DB["(dashboard)/layout DashboardShell"]
+    USERS_P["/users ProtectedPage(user:read) UserManagement"]
+    ROLES_P["/roles ProtectedPage(role:read) RoleManagement"]
+    AG_LAYOUT["(agent)/layout AppShell"]
+    AG_HOME["/agent NewConversationComposer"]
+    SESSION["/agent/sessions/[id] SessionConversationStream"]
+    AUDIT_LIST["/agent/audit super_admin only"]
+    AUDIT_SESS["/agent/audit/sessions/[id] GovernanceTranscript"]
+    AUDIT_RUN["/agent/audit/runs/[id] RunDiagnostics"]
+
+    ROOT --> LOGIN
+    LOGIN -->|"登录"| AG_HOME
+    DB --> USERS_P & ROLES_P
+    AG_LAYOUT --> AG_HOME & SESSION & AUDIT_LIST
+    AUDIT_LIST --> AUDIT_SESS & AUDIT_RUN
+  </div>
+  <div class="diagram" style="min-width:400px;">
+    <table class="spec">
+      <tr><th>路由</th><th>鉴权机制</th><th>核心组件</th></tr>
+      <tr><td>/login</td><td>公开</td><td>LoginForm</td></tr>
+      <tr><td>/users</td><td>ProtectedPage: user:read</td><td>UserManagement → UserFilters·UserTable·UserDrawer·PasswordResetDialog</td></tr>
+      <tr><td>/roles</td><td>ProtectedPage: role:read</td><td>RoleManagement → RoleFilters·RoleTable·RoleDrawer·PermissionTree</td></tr>
+      <tr><td>/agent</td><td>AuthenticatedPage</td><td>NewConversationComposer·SessionSidebarList</td></tr>
+      <tr><td>/agent/sessions/[id]</td><td>AuthenticatedPage + 所有权</td><td>SessionConversationStream·FinalAnswerPanel·ThoughtNarrative·StreamingMarkdown</td></tr>
+      <tr><td>/agent/audit</td><td>isSuperAdmin()</td><td>会话表格 + 用户筛选</td></tr>
+      <tr><td>/agent/audit/sessions/[id]</td><td>isSuperAdmin()</td><td>GovernanceTranscript</td></tr>
+      <tr><td>/agent/audit/runs/[id]</td><td>isSuperAdmin()</td><td>尝试记录·步骤·脱敏事件</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ======== 4 ======== -->
+<h2 id="s4">4. 后端 API 全景图（42 个端点）</h2>
+<div class="diagram mermaid">
+flowchart TB
+    subgraph AUTH["/api/auth · 4 个端点"]
+        A1["POST /login"]
+        A2["POST /logout → 204"]
+        A3["GET /me JWT cookie"]
+        A4["GET /csrf 获取 CSRF Token"]
+    end
+    subgraph USERS["/api/users · 6 个端点"]
+        U1["GET / 列表 user:read"]
+        U2["POST / 创建 user:create"]
+        U3["PUT /{id} 更新 user:update"]
+        U4["DELETE /{id} 删除 user:delete"]
+        U5["PATCH /{id}/status user:status"]
+        U6["POST /{id}/reset-password user:reset_password"]
+    end
+    subgraph ROLES["/api/roles + /api/permissions · 7 个端点"]
+        R1["GET /roles 列表 role:read"]
+        R2["GET /roles/{id} 详情"]
+        R3["POST /roles 创建 role:create"]
+        R4["PUT /roles/{id} 更新 role:update"]
+        R5["PATCH /roles/{id}/status role:status"]
+        R6["DELETE /roles/{id} role:delete"]
+        R7["GET /permissions 字典 role:read"]
+    end
+    subgraph AGENT["/api/agent · 13 个端点"]
+        G1["POST /sessions 创建"]
+        G2["GET /sessions 列表"]
+        G3["GET /sessions/{id} 详情"]
+        G4["GET /sessions/{id}/runs"]
+        G5["POST /sessions/{id}/runs 创建运行"]
+        G6["GET /runs/{id} 详情+尝试"]
+        G7["GET /runs/{id}/attempts"]
+        G8["GET /runs/{id}/attempts/{aid}/steps"]
+        G9["GET /runs/{id}/steps 当前"]
+        G10["GET /runs/{id}/events 游标分页"]
+        G11["POST /runs/{id}/cancel"]
+        G12["POST /runs/{id}/retry"]
+        G13["GET /runs/{id}/stream SSE"]
+    end
+    subgraph ATTACH["/api/agent · 4 个附件端点"]
+        T1["POST /sessions/{id}/attachments"]
+        T2["GET /sessions/{id}/attachments"]
+        T3["GET /attachments/{id}/download 流式"]
+        T4["DELETE /attachments/{id}"]
+    end
+    subgraph AUDIT["/api/agent/audit · 8 个端点 (super_admin)"]
+        AD1["GET /sessions"]
+        AD2["GET /sessions/{id}"]
+        AD3["GET /sessions/{id}/runs"]
+        AD4["GET /runs/{id}"]
+        AD5["GET /runs/{id}/attempts"]
+        AD6["GET /runs/{id}/attempts/{aid}/steps"]
+        AD7["GET /runs/{id}/events 脱敏"]
+        AD8["GET /sessions/{id}/transcript"]
+    end
+</div>
+
+<!-- ======== 5 ======== -->
+<h2 id="s5">5. 认证与 RBAC 鉴权流程</h2>
+<div class="diagram mermaid">
+flowchart TD
+    START["用户访问页面"] --> COOKIE{"有 access_token Cookie?"}
+    COOKIE -->|"否"| LOGIN["跳转 /login"]
+    COOKIE -->|"是"| VERIFY["解码 JWT (HS256)"]
+
+    LOGIN --> POST["POST /api/auth/login"]
+    POST --> CHECK{"账号存在且密码正确?"}
+    CHECK -->|"失败"| REJECT["统一提示: 账号或密码错误"]
+    CHECK -->|"成功"| ISSUE["签发 JWT → HttpOnly Cookie<br/>SameSite=Lax"]
+
+    ISSUE --> VERIFY
+    VERIFY --> VALID{"有效且未过期?"}
+    VALID -->|"否"| CLEAR["清除 Cookie → /login"]
+    VALID -->|"是"| LOAD["加载 User + 四表 JOIN 计算权限<br/>User→UserRole→Role→RolePermission→Permission<br/>→ _permission_codes 集合"]
+
+    LOAD --> API_CALL["调用受保护 API"]
+    API_CALL --> MUTATING{"变写请求?"}
+    MUTATING -->|"是"| CSRF["require_csrf<br/>X-CSRF-Token + Origin 校验"]
+    MUTATING -->|"否"| CHECK_PERM["require_permissions(*codes)"]
+    CSRF --> CHECK_PERM
+
+    CHECK_PERM --> HAS{"拥有所需权限?"}
+    HAS -->|"是"| EXEC["执行业务 → SuccessResponse"]
+    HAS -->|"否"| DENY["403 PERMISSION_DENIED"]
+</div>
+
+<!-- ======== 6 ======== -->
+<h2 id="s6">6. Agent 执行循环（核心引擎）</h2>
+<div class="diagram mermaid">
+flowchart TD
+    START["用户提交 goal"] --> CREATE["创建 AgentRun + AgentRunAttempt<br/>status=queued"]
+    CREATE --> CLAIM["Worker 原子认领 pending→running<br/>记录 worker_id + lease"]
+    CLAIM --> INIT["emit run_started<br/>构建会话历史(最近6轮)<br/>读取附件上下文<br/>应用运行策略(quick×5步/expert×200步)"]
+
+    INIT --> STEP_LOOP{"step_index < max_steps?"}
+    STEP_LOOP -->|"是"| CANCEL{"已请求取消?"}
+    CANCEL -->|"是"| CANCELED["终态: cancelled"]
+    CANCEL -->|"否"| TIMEOUT{"超时?"}
+    TIMEOUT -->|"是"| FAILED["终态: failed timeout"]
+    TIMEOUT -->|"否"| PLAN["1. 规划: DeepSeek API(JSON mode)<br/>Pydantic 验证 → plan_created 事件"]
+
+    PLAN --> PLAN_ERR{"成功?"}
+    PLAN_ERR -->|"可重试失败"| RETRY["指数退避创建重试尝试"]
+    PLAN_ERR -->|"成功"| SANITIZE["2. 安全清理: sanitize + enforce_final_step"]
+
+    SANITIZE --> THOUGHT["3. 可见思考流: DeepSeek(stream)<br/>≤500字 · 安全过滤<br/>emit visible_thought_delta ×N"]
+
+    THOUGHT --> IS_FINISH{"action=='finish'?"}
+    IS_FINISH -->|"否"| TOOL["4. 工具执行: web_search(Tavily)<br/>http_request / calculator<br/>emit tool_started + tool_completed"]
+    TOOL --> RESUME["5. 恢复思考流"]
+    RESUME --> RECORD["6. 记录步骤: AgentStep<br/>emit step_completed"]
+    RECORD --> STEP_LOOP
+
+    IS_FINISH -->|"是"| ANSWER["7. 最终答案: DeepSeek(stream)<br/>每256字符检查点<br/>emit answer_delta ×N"]
+    ANSWER --> SUCCESS["8. 持久化: answer→result JSON<br/>run→succeeded · emit run_succeeded"]
+</div>
+
+<!-- ======== 7 ======== -->
+<h2 id="s7">7. SSE 事件流与实时推送</h2>
+<div class="diagram mermaid">
+flowchart TB
+    subgraph PRODUCER["事件生产者: AgentLoopService"]
+        LOOP["_persist_and_notify()"]
+    end
+
+    subgraph PATHS["双路径传播"]
+        direction LR
+        P1["路径1: DB INSERT + pg_notify()"]
+        P2["路径2: AgentEventBus 内存发布"]
+    end
+
+    subgraph CONSUMERS["事件消费者"]
+        direction TB
+        C1["SSE endpoint: _stream_persisted_run_events()<br/>追批阶段: SELECT events WHERE seq>after_seq<br/>实时阶段: AgentEventBus.subscribe()"]
+        C2["PostgresEventListener: asyncpg LISTEN"]
+        C3["浏览器: EventSource API<br/>useRunEventStream hook<br/>run-stream-reducer 处理事件"]
+    end
+
+    LOOP --> P1 & P2
+    P1 --> C1 & C2
+    P2 --> C1
+    C2 --> C1
+    C1 -->|"text/event-stream<br/>id: seq, data: event"| C3
+
+    subgraph RECONNECT["前端重连策略"]
+        R1["断开 → 指数退避 1s→5s"]
+        R2["最大 8 次 → after_seq 续传"]
+        R3["断线后运行对账: GET /api/agent/runs/{id}"]
+    end
+    C3 -.->|"断开"| RECONNECT
+</div>
+
+<!-- ======== 8 ======== -->
+<h2 id="s8">8. Worker 后台调度架构</h2>
+<div class="diagram mermaid">
+flowchart TD
+    MAIN["AgentWorker.run() 主循环"]
+
+    MAIN --> RECOVER["_recover_expired()<br/>① 恢复过期租约<br/>② 对账 stuck 运行"]
+    RECOVER --> CLAIM["_claim_and_execute()<br/>并发信号量控制(max=N)"]
+
+    CLAIM --> ATOMIC["claim_next_attempt()<br/>原子: 选最早 pending<br/>→ running + worker_id + lease"]
+    ATOMIC -->|"无待处理"| SLEEP["sleep 1s · 可被信号唤醒"]
+    SLEEP --> RECOVER
+    ATOMIC -->|"认领成功"| SPAWN["asyncio.create_task()"]
+
+    SPAWN --> DUAL["双协程并发"]
+    DUAL --> EXEC["主: process_attempt()"]
+    DUAL --> RENEW["租约续期: 每 lease/3 秒<br/>renew_lease()"]
+
+    EXEC --> RESULT{"结果?"}
+    RESULT -->|"成功"| TERM_OK["succeeded"]
+    RESULT -->|"可重试"| RETRY_W["创建新尝试 + 指数退避"]
+    RESULT -->|"不可重试"| TERM_FAIL["failed + failure_code"]
+    RESULT -->|"取消"| TERM_CANCEL["cancelled"]
+    RENEW -->|"丢失租约"| MARK["尝试 → failed"]
+
+    subgraph SHUTDOWN["优雅关闭"]
+        SIG["SIGTERM/SIGINT"] --> STOP["stop_event"]
+        STOP --> WAIT["等待所有任务(max grace_s)"]
+        WAIT --> CLOSE["关闭 HTTP + DB 连接"]
+    end
+</div>
+
+<!-- ======== 9 ======== -->
+<h2 id="s9">9. 完整权限模型</h2>
+<div class="diagram-row">
+  <div class="diagram mermaid">
+flowchart LR
+    U["User"] --> UR["UserRole"]
+    UR --> R["Role<br/>status: active/disabled<br/>is_system: 不可变"]
+    R --> RP["RolePermission"]
+    RP --> P["Permission<br/>code (例: user:read)<br/>module (user/role)"]
+
+    SA["super_admin<br/>is_system=true<br/>全部13个权限"] -.-> R
+    UM["user_manager<br/>7个 user:* 权限"] -.-> R
+  </div>
+  <div class="diagram" style="min-width:360px;">
+    <table class="spec">
+      <tr><th>模块</th><th>权限码</th><th>数量</th></tr>
+      <tr><td>用户</td><td>user:read · user:create · user:update · user:delete · user:status · user:reset_password · user:assign_role</td><td>7</td></tr>
+      <tr><td>角色</td><td>role:read · role:create · role:update · role:delete · role:status · role:assign_permission</td><td>6</td></tr>
+    </table>
+    <table class="spec" style="margin-top:12px;">
+      <tr><th>前端守卫层级</th><th>机制</th></tr>
+      <tr><td>AuthenticatedPage</td><td>GET /api/auth/me → null → /login</td></tr>
+      <tr><td>ProtectedPage</td><td>扩展 AuthenticatedPage + hasPermission()</td></tr>
+      <tr><td>isSuperAdmin()</td><td>检查 roles[].code === "super_admin"</td></tr>
+      <tr><td>菜单可见性</td><td>AppSidebar 条件渲染 menu_permissions</td></tr>
+      <tr><td>操作按钮</td><td>UserTable/RoleTable 单项权限检查</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ======== 10 ======== -->
+<h2 id="s10">10. 全系统数据流（时序图）</h2>
+<div class="diagram mermaid">
+sequenceDiagram
+    actor U as 用户
+    participant FE as Next.js SPA
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant W as AgentWorker
+    participant LLM as DeepSeek
+    participant T as Tavily
+
+    U->>FE: 输入目标 goal
+    FE->>API: GET /api/auth/csrf
+    API-->>FE: {token}
+    FE->>API: POST /api/agent/sessions
+    API->>DB: INSERT agent_sessions
+    API-->>FE: session
+
+    FE->>API: POST /api/agent/sessions/{id}/runs
+    API->>DB: INSERT agent_runs + agent_run_attempts
+    API-->>FE: run
+
+    FE->>FE: 跳转 /agent/sessions/{id}
+    FE->>API: GET runs + GET events
+    API->>DB: SELECT
+    API-->>FE: runs[] + events[]
+
+    FE->>API: EventSource: GET /runs/{id}/stream
+    Note over FE,API: SSE 连接建立
+
+    W->>DB: claim_next_attempt() 原子认领
+    DB-->>W: attempt (running)
+
+    W->>LLM: Planner → JSON plan
+    LLM-->>W: {thought_summary, action}
+    W->>DB: INSERT event: plan_created
+
+    W->>LLM: Visible thought (stream)
+    LLM-->>W: delta chunks ×N
+    W->>DB: INSERT events: thought_delta ×N
+
+    W->>T: web_search(query)
+    T-->>W: results[]
+    W->>DB: INSERT event: tool_completed
+
+    W->>LLM: Final answer (stream)
+    LLM-->>W: delta chunks ×N
+    W->>DB: INSERT events: answer_delta ×N
+    W->>DB: UPDATE run → succeeded
+
+    DB-->>API: NOTIFY agent_run_events
+    API-->>FE: SSE: id=seq, data=event
+    FE->>U: 实时渲染思考+答案
+</div>
+
+<!-- ======== 11 ======== -->
+<h2 id="s11">11. Agent 执行步骤详解</h2>
+<div class="diagram mermaid">
+flowchart LR
+    subgraph PRE["预处理"]
+        P1["emit run_started"]
+        P2["构建会话历史<br/>最近6轮 goal+answer"]
+        P3["读取附件<br/>_read_attachment_context()<br/>注入至 planner goal"]
+        P4["_run_policy 策略<br/>quick→max 5步<br/>expert→max 200步"]
+    end
+
+    subgraph LOOP["步进循环"]
+        L1["取消检查<br/>is_cancel_requested()"]
+        L2["超时检查<br/>elapsed > run_timeout"]
+        L3["规划 next_action()"]
+        L4["清理 sanitize_action"]
+        L5["可见思考流 ≤500字"]
+        L6["工具执行 execute()"]
+        L7["恢复思考"]
+        L8["记录 AgentStep"]
+    end
+
+    subgraph ANSWER["答案生成"]
+        A1["_stream_final_answer()<br/>每256字符检查点"]
+        A2["emit answer_completed"]
+        A3["_persist_successful_completion<br/>run→succeeded"]
+    end
+
+    PRE --> LOOP
+    LOOP -->|"行动=finish"| ANSWER
+    LOOP -->|"继续"| LOOP
+</div>
+
+<!-- ======== 12 ======== -->
+<h2 id="s12">12. 前端状态管理策略</h2>
+<div class="diagram" style="overflow:visible;">
+  <table class="spec">
+    <tr><th>策略</th><th>使用场景</th><th>说明</th></tr>
+    <tr><td>useState</td><td>所有组件</td><td>表单状态·数据状态·对话框状态·Discriminated Union 模式</td></tr>
+    <tr><td>useRef</td><td>流处理·计时器</td><td>AbortController·前值比较·防抖 ID</td></tr>
+    <tr><td>Custom DOM Events</td><td>跨组件缓存失效</td><td>invalidateAgentSessions() → onAgentSessionsInvalidated() 事件总线</td></tr>
+    <tr><td>Map 内存缓存</td><td>会话视图</td><td>session-view-cache.ts: 立即展示缓存后再异步刷新</td></tr>
+    <tr><td>localStorage</td><td>偏好持久化</td><td>侧边栏折叠状态·答案反馈(like/dislike)</td></tr>
+    <tr><td>Render Props</td><td>Auth 守卫</td><td>AuthenticatedPage / ProtectedPage 传递 user 对象</td></tr>
+    <tr><td>Pure Reducer</td><td>SSE 事件</td><td>run-stream-reducer.ts: 处理 22 种事件类型→RunStreamState</td></tr>
+    <tr><td>React.memo</td><td>性能优化</td><td>ThoughtNarrative · FinalAnswerPanel 避免不必要重渲染</td></tr>
+  </table>
+  <p class="legend">* 无 Redux/Zustand/Jotai — 纯 React 原生状态管理</p>
+</div>
+
+<!-- ======== 13 ======== -->
+<h2 id="s13">13. 文件上传与存储架构</h2>
+<div class="diagram mermaid">
+flowchart TD
+    UPLOAD["用户上传文件"] --> VALID["前端校验<br/>MIME 白名单 · ≤2MB · 文件名安全"]
+    VALID --> API["POST /api/agent/sessions/{id}/attachments<br/>FormData + CSRF"]
+
+    API --> COUNT{"已达最大数?<br/>agent_attachment_max_count=5"}
+    COUNT -->|"是"| REJECT["拒绝: 已达上限"]
+    COUNT -->|"否"| PIPELINE["AttachmentService.upload() 流水线"]
+
+    PIPELINE --> STEP1["① 写入 temp/{uuid}<br/>限流 max_bytes=2MB"]
+    STEP1 --> STEP2["② 嗅探 4096 字节魔术字节<br/>MZ/ELF/Mach-O → 拒绝<br/>ZIP/gzip/RAR → 拒绝"]
+    STEP2 --> STEP3["③ validate_and_normalize_mime()<br/>魔术字节覆盖 Content-Type"]
+    STEP3 --> STEP4["④ 创建 AgentAttachment 记录<br/>extraction_status=pending_scan<br/>expires_at=now+90d"]
+    STEP4 --> STEP5["⑤ compute_sha256()"]
+    STEP5 --> STEP6["⑥ 文本提取: UTF-8 decode ≤10KB<br/>PDF → None (标记 rejected)"]
+    STEP6 --> STEP7["⑦ rename: temp → attachments/{uuid}<br/>extraction_status→ready/rejected"]
+
+    PIPELINE --> STORE["PrivateObjectStorage<br/>root: ./var/agent/<br/>路径遍历保护·跨符号链接防护"]
+</div>
+
+<!-- ======== 14 ======== -->
+<h2 id="s14">14. 数据保留与清理策略</h2>
+<div class="diagram-row">
+  <div class="diagram mermaid">
+flowchart TD
+    MAINT["MaintenanceWorker 每日执行<br/>sleep 86400s 间隔"]
+
+    MAINT --> ATTACH["① 删除过期附件<br/>expires_at < now-90d"]
+    ATTACH --> RUN_AT["② 删除旧运行附件关联<br/>run.created_at < now-180d"]
+    RUN_AT --> EVENTS["③ 删除旧事件<br/>batch 50"]
+    EVENTS --> STEPS["④ 删除旧步骤<br/>batch 50"]
+    STEPS --> ATTEMPTS["⑤ 删除旧尝试<br/>batch 50"]
+    ATTEMPTS --> RUNS["⑥ 删除旧运行<br/>batch 50"]
+    RUNS --> ORPHAN["⑦ 清理孤立会话<br/>LEFT JOIN COUNT(runs)=0"]
+
+    ATTACH --> FS_CLEAN["物理删除存储文件"]
+    RUNS --> JOB["记录 AgentRetentionJob<br/>stats + error_summary"]
+  </div>
+  <div class="diagram" style="min-width:300px;">
+    <table class="spec">
+      <tr><th>保留策略</th><th>时长</th><th>配置项</th></tr>
+      <tr><td>附件</td><td>90 天</td><td>agent_attachment_retention_days</td></tr>
+      <tr><td>运行数据</td><td>180 天</td><td>agent_run_retention_days</td></tr>
+      <tr><td>删除方式</td><td colspan="2">物理删除(附件先删文件再删记录) · batch=50 · 容错单条失败</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ======== 15 ======== -->
+<h2 id="s15">15. 安全防护矩阵</h2>
+<div class="diagram" style="overflow:visible;">
+  <table class="spec">
+    <tr><th>层级</th><th>防护措施</th><th>实现细节</th></tr>
+    <tr><td>传输</td><td>HTTPS + Cookie Security</td><td>HttpOnly · SameSite=Lax · Configurable Secure flag</td></tr>
+    <tr><td>认证</td><td>JWT (HS256) + Cookie</td><td>用户ID·用户名·签发时间·过期时间 · 默认30分钟</td></tr>
+    <tr><td>CSRF</td><td>双重 Token 验证</td><td>X-CSRF-Token 头(JWT绑定用户) + Origin/Referer 校验</td></tr>
+    <tr><td>鉴权</td><td>RBAC 四表 JOIN</td><td>User→UserRole→Role→RolePermission→Permission · 权限码集合比对</td></tr>
+    <tr><td>密码</td><td>Argon2 哈希</td><td>≥8字符 · 含字母+数字 · Argon2 密钥派生</td></tr>
+    <tr><td>文件</td><td>魔术字节扫描</td><td>MZ/ELF/Mach-O 可执行文件拦截 · ZIP/gzip/RAR 压缩包拦截</td></tr>
+    <tr><td>SSRF</td><td>多层 URL 校验</td><td>DNS 解析→IP 全局路由检查 · 禁止内网/环回 · 最大5次重定向 · 禁止已知工具 API 域名</td></tr>
+    <tr><td>XSS</td><td>前端 URL 净化</td><td>Markdown 渲染前 URL sanitization · HTML 转义 · 不支持 HTML 执行</td></tr>
+    <tr><td>敏感数据</td><td>审计脱敏</td><td>Authorization/Cookie/Password/Token/Secret/API Key 标记 [REDACTED]</td></tr>
+    <tr><td>路径穿越</td><td>文件系统保护</td><td>normalize_display_filename() · resolve() + 子路径校验</td></tr>
+    <tr><td>并发</td><td>Worker 租约机制</td><td>原子认领 + 定时续期 · 过期回收 · 防止重复执行</td></tr>
+  </table>
+</div>
+
+<!-- ======== 16 ======== -->
+<h2 id="s16">16. 事件类型完整清单（22 种 SSE 事件）</h2>
+<div class="diagram" style="overflow:visible;">
+  <table class="spec">
+    <tr><th>事件类型</th><th>触发时机</th><th>Payload 关键字段</th></tr>
+    <tr><td>run_started</td><td>Worker 开始处理</td><td>run_id, started_at</td></tr>
+    <tr><td>plan_created</td><td>规划器返回计划</td><td>step_index, thought_summary, action</td></tr>
+    <tr><td>visible_thought_started</td><td>思考流开始</td><td>step_index, stream_id</td></tr>
+    <tr><td>visible_thought_delta</td><td>思考流增量</td><td>step_index, stream_id, offset, delta</td></tr>
+    <tr><td>visible_thought_paused</td><td>思考暂停(工具执行前)</td><td>text, length, fallback</td></tr>
+    <tr><td>visible_thought_completed</td><td>思考流完成</td><td>text, length, fallback</td></tr>
+    <tr><td>tool_started</td><td>工具调用开始</td><td>step_index, action_type, tool_call</td></tr>
+    <tr><td>tool_completed</td><td>工具调用完成</td><td>step_index, action_type, tool_call, observation</td></tr>
+    <tr><td>step_completed</td><td>步骤记录完成</td><td>step_index, action_type, tool_call, observation, duration</td></tr>
+    <tr><td>answer_started</td><td>最终答案流开始</td><td>stream_id</td></tr>
+    <tr><td>answer_delta</td><td>答案流增量</td><td>stream_id, offset, delta</td></tr>
+    <tr><td>answer_checkpoint</td><td>答案检查点(256字符/0.4s)</td><td>stream_id, text, offset</td></tr>
+    <tr><td>answer_completed</td><td>答案完整输出</td><td>stream_id, text, length</td></tr>
+    <tr><td>answer_failed</td><td>答案生成失败</td><td>stream_id, error, offset</td></tr>
+    <tr><td>run_succeeded</td><td>运行成功完成</td><td>final_answer</td></tr>
+    <tr><td>run_failed</td><td>运行失败</td><td>error</td></tr>
+    <tr><td>run_cancelled</td><td>用户取消运行</td><td>reason</td></tr>
+    <tr><td>run_cancel_requested</td><td>取消请求已接收</td><td>-</td></tr>
+    <tr><td>run_retried</td><td>创建重试尝试</td><td>attempt_number, retry_of_attempt_id</td></tr>
+    <tr><td>run_retry_scheduled</td><td>重试已调度</td><td>error, attempt_number, retry_of_attempt_id</td></tr>
+    <tr><td>visible_thought_resumed</td><td>思考恢复继续</td><td>step_index, stream_id</td></tr>
+    <tr><td>visible_thought_tool_interleaved</td><td>思考和工具交替</td><td>step_index, tool_call, observation</td></tr>
+  </table>
+</div>
+
+<!-- ======== 17 ======== -->
+<h2 id="s17">17. 工具执行引擎详解</h2>
+<div class="diagram mermaid">
+flowchart TD
+    TOOL["ToolExecutor.execute()"] --> TYPE{"action.type?"}
+
+    TYPE -->|"web_search"| TAVILY_CALL["Tavily Search API<br/>POST /search<br/>参数: query, max_results=10<br/>返回: title+url+content"]
+    TYPE -->|"http_request<br/>extract_web_content"| HTTP["HTTP GET 请求<br/>SSRF 防护:<br/>- DNS 解析 + IP 全局路由检查<br/>- 最大5次重定向<br/>- 每跳重复安全检查<br/>- 禁止已知工具 API 域名"]
+    TYPE -->|"calculator"| CALC["AST 安全求值<br/>ast.parse(mode='eval')<br/>支持: + - * / // % **<br/>指数上限100 · 结果上限10^100<br/>最大50次运算"]
+    TYPE -->|"finish"| FINISH["返回完成标记<br/>不产生额外调用"]
+
+    TAVILY_CALL --> RESULT["return observation dict"]
+    HTTP --> PARSE["_WebContentParser<br/>抽取: title + body text + ≤25 links<br/>忽略: script/style/noscript/template"]
+    PARSE --> RESULT
+    CALC --> RESULT
+    FINISH --> RESULT
+
+    RESULT --> SANITIZE_O["_sanitize_observation()<br/>过滤: authorization/body/cookie<br/>password/secret/token"]
+</div>
+
+<!-- ======== 18 ======== -->
+<h2 id="s18">18. 错误分类与重试策略</h2>
+<div class="diagram-row">
+  <div class="diagram mermaid">
+flowchart TD
+    EXC["异常发生"] --> CLASSIFY["classify_agent_failure()"]
+
+    CLASSIFY --> AUTH_ERR["ProviderAuthenticationError<br/>→ deepseek_auth_error<br/>❌ 不可重试"]
+    CLASSIFY --> CONFIG_ERR["ProviderConfigurationError<br/>→ deepseek_config_error<br/>❌ 不可重试"]
+    CLASSIFY --> REJECT_ERR["ProviderResponseError<br/>→ deepseek_request_rejected<br/>❌ 不可重试"]
+    CLASSIFY --> PLAN_ERR["RetryablePlannerError<br/>→ deepseek_retryable_error<br/>✅ 可重试"]
+    CLASSIFY --> STREAM_ERR["RetryableStreamingError<br/>→ deepseek_streaming_error<br/>✅ 可重试"]
+    CLASSIFY --> TOOL_ERR["RetryableToolError<br/>→ tool_retryable_error<br/>✅ 可重试"]
+    CLASSIFY --> TIMEOUT_ERR["asyncio.TimeoutError<br/>httpx.TimeoutException<br/>→ deepseek_timeout<br/>✅ 可重试"]
+    CLASSIFY --> UNKNOWN["其他异常<br/>→ worker_unhandled_error<br/>❌ 不可重试"]
+  </div>
+  <div class="diagram" style="min-width:300px;">
+    <table class="spec">
+      <tr><th>参数</th><th>值</th><th>说明</th></tr>
+      <tr><td>base</td><td>2.0s</td><td>退避基数</td></tr>
+      <tr><td>max</td><td>30.0s</td><td>最大退避时间</td></tr>
+      <tr><td>max_attempts</td><td>3</td><td>最大重试次数</td></tr>
+      <tr><td>公式</td><td colspan="2">delay = min(base × 2^(n-1), max)<br/>例: 2s → 4s → 8s</td></tr>
+      <tr><td>run_timeout</td><td>120s</td><td>总运行超时</td></tr>
+      <tr><td>step_timeout</td><td>30s</td><td>单步超时</td></tr>
+      <tr><td>http_timeout</td><td>25s</td><td>HTTP 请求超时</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ======== 19 ======== -->
+<h2 id="s19">19. 技术栈全景</h2>
+<div class="diagram" style="overflow:visible;">
+  <table class="spec">
+    <tr><th>层级</th><th>技术</th><th>版本 / 说明</th></tr>
+    <tr><td>前端框架</td><td>Next.js (App Router)</td><td>16.2.10 · --webpack (非 Turbopack) · ES2017</td></tr>
+    <tr><td>前端 UI</td><td>React · TypeScript</td><td>19.2.4 · strict mode · path alias @/*</td></tr>
+    <tr><td>组件库</td><td>Ant Design · @ant-design/icons</td><td>6.5.1 · 6.3.2 · 自定义 Warm Intelligence 主题</td></tr>
+    <tr><td>Markdown</td><td>react-markdown · remark-gfm</td><td>10.1.0 · 4.0+ · 增量流式解析</td></tr>
+    <tr><td>测试</td><td>Vitest · React Testing Library</td><td>4.x · 16.x · jsdom</td></tr>
+    <tr><td>后端框架</td><td>FastAPI · Uvicorn</td><td>0.115+ · 0.34+ · async</td></tr>
+    <tr><td>ORM</td><td>SQLAlchemy (async)</td><td>2.0+ · async_sessionmaker · NullPool</td></tr>
+    <tr><td>数据库</td><td>PostgreSQL · asyncpg</td><td>16+ · LISTEN/NOTIFY · JSONB</td></tr>
+    <tr><td>迁移</td><td>Alembic</td><td>1.14+ · 5 次迁移 · async engine</td></tr>
+    <tr><td>密码</td><td>Argon2 · python-jose (JWT)</td><td>argon2-cffi · HS256</td></tr>
+    <tr><td>HTTP 客户端</td><td>httpx (AsyncClient)</td><td>max_connections=20 · max_keepalive=10</td></tr>
+    <tr><td>LLM</td><td>DeepSeek Chat API</td><td>deepseek-chat · JSON mode + streaming</td></tr>
+    <tr><td>搜索</td><td>Tavily Search API</td><td>可选 · TAVILY_API_KEY</td></tr>
+    <tr><td>语音</td><td>Web Speech API</td><td>SpeechRecognition + SpeechSynthesis</td></tr>
+    <tr><td>存储</td><td>本地文件系统</td><td>./var/agent · ./var/files</td></tr>
+    <tr><td>配置</td><td>python-dotenv · pydantic-settings</td><td>.env · BaseSettings</td></tr>
+  </table>
+</div>
+
+<!-- ======== 20 ======== -->
+<h2 id="s20">20. 关键设计决策</h2>
+<div class="diagram" style="overflow:visible;">
+  <table class="spec">
+    <tr><th>#</th><th>决策</th><th>理由</th><th>影响</th></tr>
+    <tr><td>1</td><td>Cookie 而非 Bearer JWT</td><td>浏览器自动携带 · HttpOnly 防 XSS · 无需前端手动管理</td><td>需要 CSRF 双重保护机制</td></tr>
+    <tr><td>2</td><td>权限码运行时计算并缓存</td><td>get_current_user 中一次四表 JOIN → _permission_codes Set</td><td>每次请求 1 次 SQL 查询 · O(1) 权限检查</td></tr>
+    <tr><td>3</td><td>Agent 运行所有权隔离</td><td>所有 Agent 资源按 owner_user_id 限定，404 区分不存在</td><td>数据安全 · 审计追踪 · 零信任模型</td></tr>
+    <tr><td>4</td><td>SSE 双路径传播</td><td>DB NOTIFY + 内存 EventBus 并行，同时支持进程内和跨进程</td><td>单机和多机部署均可用 · 容错</td></tr>
+    <tr><td>5</td><td>Worker 租约机制</td><td>原子认领 + 定时续期 + 过期自动回收</td><td>防重复执行 · Worker 宕机自动恢复</td></tr>
+    <tr><td>6</td><td>前端全 CSR（无 SSR）</td><td>所有页面 "use client" · API 层独立</td><td>简单部署 · 但首屏依赖 JS</td></tr>
+    <tr><td>7</td><td>纯 React 状态（无状态库）</td><td>无 Redux/Zustand · useState + DOM Events + Map 缓存</td><td>学习成本低 · 大量 prop drilling</td></tr>
+    <tr><td>8</td><td>增量流式 Markdown 解析</td><td>Fence-aware 分块 · 代码块不拆分 · committed + pending tail</td><td>实时渲染体验 · 边接收边显示</td></tr>
+    <tr><td>9</td><td>思考安全过滤</td><td>正则阻止 JSON/代码块 · 安全关键词检测 · 回退中文短语</td><td>防止 LLM 输出泄露敏感信息</td></tr>
+    <tr><td>10</td><td>软删除 + 定时物理清理</td><td>RBAC 软删除(is_deleted) · Agent 定时清理(90/180天)</td><td>可恢复操作 + 存储成本控制</td></tr>
+  </table>
+</div>
+
+<div class="footer">
+  <p>企业智助系统架构全景图 · 基于源码逐行逆向分析生成 · 共 20 张专业架构图 · 2026年7月28日</p>
+  <p>分析覆盖: 42 API端点 · 13 数据库表 · 8 前端路由 · 23 Agent组件 · 13 权限 · 22 事件类型 · 5 工具 · 11 安全措施</p>
+</div>
+
+</body>
+</html>

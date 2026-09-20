@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>治理中心 — 最终版设计稿</title>
+<style>
+:root{
+  --pri:#D96313;--pri2:#e88436;--bg:#FAF7F3;--sur:#fff;--t:#172033;--t2:#526078;--t3:#8b99ab;
+  --brd:#d9e0ea;--r:12px;--sh:0 2px 8px rgba(23,32,51,.04);--topbar:#1a1210;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{max-width:1440px;margin:0 auto;background:var(--bg);color:var(--t);font:14px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+
+/* ── Top Bar ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:var(--topbar);color:#c8bcb4}
+.topbar .left{display:flex;align-items:center;gap:8px;font-weight:600;color:#fff}
+.topbar .left .sq{width:28px;height:28px;background:var(--pri);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.topbar .right{display:flex;align-items:center;gap:10px;font-size:12px}
+.topbar .right .av{width:28px;height:28px;border-radius:50%;background:var(--pri2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px}
+
+/* ── Main Layout ── */
+.main-layout{display:flex}
+.sidebar{width:240px;min-height:calc(100vh - 48px);background:#1a1210;flex-shrink:0;padding:12px 0;position:relative}
+.sidebar .nav-item{padding:9px 22px;display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;transition:.15s;color:#b8a99e}
+.sidebar .nav-item:hover{background:#2d2420;color:#fff}
+.sidebar .nav-item.active{background:#2d2420;color:var(--pri);font-weight:600}
+.sidebar .btn-new{display:block;margin:4px 16px 14px;padding:8px 14px;background:var(--pri);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;text-align:center;width:calc(100% - 32px)}
+.sidebar .user-footer{position:absolute;bottom:16px;left:0;width:100%;padding:10px 20px;border-top:1px solid #2d2420;display:flex;align-items:center;gap:8px;font-size:12px;color:#b8a99e}
+.sidebar .user-footer .av{width:24px;height:24px;border-radius:50%;background:var(--pri2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px}
+
+.content-area{flex:1;padding:28px 32px;background:var(--bg)}
+
+/* ── page-hero ── */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.page-header .copy h1{font-size:22px;font-weight:700;color:var(--t)}
+.page-header .copy p{font-size:13px;color:var(--t2);margin-top:2px}
+.page-header .btn{display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border:1px solid var(--brd);border-radius:7px;background:var(--sur);font-size:12px;cursor:pointer;color:var(--t2)}
+
+/* ── Layout: Sider + Content ── */
+.inner-layout{display:flex;gap:16px;align-items:flex-start}
+.inner-sider{width:240px;flex-shrink:0}
+.inner-content{flex:1}
+
+/* ── Segmented in toolbar ── */
+.seg{display:inline-flex;border:1px solid var(--brd);border-radius:7px;overflow:hidden}
+.seg-btn{padding:5px 12px;font-size:12px;cursor:pointer;border:none;background:none;color:var(--t2);display:flex;align-items:center;gap:4px;transition:.15s}
+.seg-btn.active{background:var(--pri);color:#fff;font-weight:600}
+.seg-btn:not(:last-child){border-right:1px solid var(--brd)}
+
+/* ── Left Panel (User List OR Date List) ── */
+.left-panel{background:var(--sur);border:1px solid var(--brd);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+.left-panel .title{padding:12px 16px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:6px}
+.left-panel .title .icon{color:var(--pri);font-size:15px}
+.left-panel .item{padding:9px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f5f0eb;transition:.12s}
+.left-panel .item:hover{background:#fef9f4}
+.left-panel .item.active{background:#fef0e5;color:var(--pri);font-weight:600}
+.left-panel .item .name{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.left-panel .item .badge{font-size:11px;background:#f5f0eb;padding:1px 6px;border-radius:8px;color:var(--t2);flex-shrink:0}
+.left-panel .item.active .badge{background:var(--pri);color:#fff}
+
+/* Date item specific */
+.left-panel .item .date-info{display:flex;flex-direction:column;line-height:1.3}
+.left-panel .item .date-info .day{font-size:13px}
+.left-panel .item .date-info .weekday{font-size:11px;color:var(--t3)}
+.left-panel .item.active .date-info .weekday{color:var(--pri);opacity:.7}
+
+/* ── DataSurface ── */
+.data-surface{background:var(--sur);border:1px solid var(--brd);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+.data-surface-toolbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #f0ebe0;flex-wrap:wrap;gap:10px}
+.data-surface-toolbar .left{display:flex;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:6px;border:1px solid var(--brd);border-radius:7px;padding:5px 10px;background:var(--sur);width:250px}
+.search input{border:none;outline:none;flex:1;font-size:12px;color:var(--t);background:transparent}
+.search input::placeholder{color:var(--t3)}
+.search .icon{color:var(--t3);font-size:13px}
+.stats{font-size:12px;color:var(--t2)}
+
+/* ── Table ── */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:9px 16px;font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #f0ebe0;background:#fdfbf7}
+.tbl td{padding:9px 16px;border-bottom:1px solid #f5f0eb;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fef9f4}
+.tbl .link{color:var(--pri);cursor:pointer;font-weight:500;font-size:13px}
+.tbl .link:hover{text-decoration:underline}
+.tbl .uid{font-family:"Cascadia Code",Consolas,monospace;font-size:11px;color:var(--t3)}
+.tbl .time{font-size:12px;color:var(--t3);white-space:nowrap}
+
+/* ── User info bar above table ── */
+.user-info-bar{margin:0 18px;padding:10px 0;display:flex;align-items:center;justify-content:space-between}
+.user-info-bar .ui-left{display:flex;align-items:center;gap:8px}
+.user-info-bar .ui-icon{width:32px;height:32px;border-radius:50%;background:#fef0e5;display:flex;align-items:center;justify-content:center;color:var(--pri);font-size:14px;font-weight:700}
+.user-info-bar .ui-name{font-size:14px;font-weight:700;color:var(--t)}
+.user-info-bar .ui-role{font-size:11px;color:var(--t2);margin-left:4px}
+.user-info-bar .ui-meta{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--t2)}
+.user-info-bar .ui-pill{background:#fef0e5;color:var(--pri);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="left"><div class="sq">智</div><span>企业智助</span></div>
+  <div class="right"><span>超级管理员</span><div class="av">超</div></div>
+</div>
+
+<div class="main-layout">
+
+  <!-- Left Global Sidebar -->
+  <div class="sidebar">
+    <button class="btn-new">＋ 开始新对话</button>
+    <div class="nav-item">📂 我的文件</div>
+    <div class="nav-item">📁 文件管理</div>
+    <div class="nav-item">👥 用户管理</div>
+    <div class="nav-item">🔑 角色管理</div>
+    <div class="nav-item active">🔍 对话审计</div>
+    <div style="height:20px"></div>
+    <div class="user-footer"><div class="av">超</div>超级管理员 @admin</div>
+  </div>
+
+  <!-- ====== 视图 A：按用户 ====== -->
+  <div class="content-area">
+    <div class="page-header">
+      <div class="copy"><h1>治理中心</h1><p>查看所有用户的对话记录 · 仅超级管理员可访问</p></div>
+      <button class="btn">🔄 刷新</button>
+    </div>
+
+    <!-- 视图标签 -->
+    <div style="margin-bottom:12px;font-size:12px;font-weight:600;color:var(--t2)">▼ 按用户分组 (默认视图)</div>
+
+    <div class="inner-layout">
+
+      <!-- Left: 用户列表 -->
+      <div class="inner-sider">
+        <div class="left-panel">
+          <div class="title"><span class="icon">👤</span>所有用户</div>
+          <div class="item active">
+            <span class="name">超级管理员</span>
+            <span class="badge">23</span>
+          </div>
+          <div class="item">
+            <span class="name">周瑜</span>
+            <span class="badge">15</span>
+          </div>
+          <div class="item">
+            <span class="name">诸葛亮</span>
+            <span class="badge">9</span>
+          </div>
+          <div class="item">
+            <span class="name">甄姬</span>
+            <span class="badge">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: DataSurface (选中的用户的会话) -->
+      <div class="inner-content">
+        <div class="data-surface">
+          <div class="data-surface-toolbar">
+            <div class="left">
+              <!-- ★ 切换按钮 ★ -->
+              <div class="seg">
+                <button class="seg-btn active">👤 按用户</button>
+                <button class="seg-btn">🕐 按时间</button>
+              </div>
+              <div class="search">
+                <span class="icon">🔍</span>
+                <input type="text" placeholder="搜索会话内容…">
+              </div>
+            </div>
+            <div class="stats">共 23 条记录</div>
+          </div>
+
+          <!-- 选中用户信息栏 -->
+          <div class="user-info-bar">
+            <div class="ui-left">
+              <div class="ui-icon">超</div>
+              <div>
+                <span class="ui-name">超级管理员</span>
+                <span class="ui-role">· @admin</span>
+              </div>
+            </div>
+            <div class="ui-meta">
+              <span class="ui-pill">23 条会话</span>
+              <span>最近活跃 7月31日 14:22</span>
+            </div>
+          </div>
+
+          <table class="tbl">
+            <thead><tr><th>会话</th><th style="width:130px">时间</th></tr></thead>
+            <tbody>
+              <tr><td><span class="link">请详细写出韭菜炒鸡蛋的完整教程，要包含食材清单、步骤、关键技巧…</span></td><td class="time">7月31日 14:22</td></tr>
+              <tr><td><span class="link">读取 docs 文件夹里的架构总览，给我总结 Agent Loop 的核心组件</span></td><td class="time">7月30日 20:57</td></tr>
+              <tr><td><span class="link">请详细写出韭菜炒鸡蛋的完整教程…</span></td><td class="time">7月30日 18:35</td></tr>
+              <tr><td><span class="link">分析一下 AI Agent 在 2025 年的发展趋势</span></td><td class="time">7月30日 17:51</td></tr>
+              <tr><td><span class="link">读取学习笔记，总结 DeepSeek 的集成方式</span></td><td class="time">7月30日 16:12</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ====== 分隔线 ====== -->
+<div style="border-top:2px dashed var(--brd);margin:24px auto;max-width:1440px"></div>
+
+<!-- ====== 视图 B：按时间 ====== -->
+<div class="main-layout">
+  <div class="sidebar" style="visibility:hidden;pointer-events:none">
+    <div class="nav-item">占位</div>
+  </div>
+  <div class="content-area">
+    <div class="page-header">
+      <div class="copy"><h1>治理中心</h1><p>查看所有用户的对话记录 · 仅超级管理员可访问</p></div>
+      <button class="btn">🔄 刷新</button>
+    </div>
+
+    <div style="margin-bottom:12px;font-size:12px;font-weight:600;color:var(--t2)">▼ 按时间分组</div>
+
+    <div class="inner-layout">
+
+      <!-- Left: 时间列表 (从用户列表切换而来) -->
+      <div class="inner-sider">
+        <div class="left-panel">
+          <div class="title"><span class="icon">🕐</span>时间列表</div>
+          <div class="item active">
+            <div class="date-info">
+              <span class="day">2026年7月31日</span>
+              <span class="weekday">星期四</span>
+            </div>
+            <span class="badge">6</span>
+          </div>
+          <div class="item">
+            <div class="date-info">
+              <span class="day">2026年7月30日</span>
+              <span class="weekday">星期三</span>
+            </div>
+            <span class="badge">41</span>
+          </div>
+          <div class="item">
+            <div class="date-info">
+              <span class="day">2026年7月29日</span>
+              <span class="weekday">星期二</span>
+            </div>
+            <span class="badge">28</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: 当天数据 -->
+      <div class="inner-content">
+        <div class="data-surface">
+          <div class="data-surface-toolbar">
+            <div class="left">
+              <!-- ★ 切换按钮 ★ -->
+              <div class="seg">
+                <button class="seg-btn">👤 按用户</button>
+                <button class="seg-btn active">🕐 按时间</button>
+              </div>
+              <div class="search">
+                <span class="icon">🔍</span>
+                <input type="text" placeholder="搜索会话内容…">
+              </div>
+            </div>
+            <div class="stats">共 6 条记录 · 2026年7月31日</div>
+          </div>
+
+          <table class="tbl">
+            <thead><tr><th>会话</th><th style="width:160px">用户</th><th style="width:100px">时间</th></tr></thead>
+            <tbody>
+              <tr><td><span class="link">请详细写出韭菜炒鸡蛋的完整教程…</span></td><td class="uid">超级管理员</td><td class="time">14:22</td></tr>
+              <tr><td><span class="link">帮我生成一份 Q3 项目进度报告</span></td><td class="uid">周瑜</td><td class="time">10:05</td></tr>
+              <tr><td><span class="link">请详细写出韭菜炒鸡蛋的完整教程…</span></td><td class="uid">超级管理员</td><td class="time">09:15</td></tr>
+              <tr><td><span class="link">分析系统架构的安全性</span></td><td class="uid">诸葛亮</td><td class="time">08:30</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

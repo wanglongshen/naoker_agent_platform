@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>简单 RBAC 系统设计图</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "neutral", flowchart: { htmlLabels: true, curve: "basis" } });
+  </script>
+  <style>
+    body { max-width: 1440px; margin: 0 auto; padding: 32px; background: #f6f8fb; color: #172033; font: 16px/1.55 Arial, sans-serif; }
+    h1 { margin: 0 0 8px; } h2 { margin: 36px 0 12px; }
+    .intro { color: #526078; }
+    .diagram { overflow: auto; padding: 24px; border: 1px solid #d9e0ea; border-radius: 12px; background: #fff; box-shadow: 0 2px 10px #1720330d; }
+  </style>
+</head>
+<body>
+  <h1>简单 RBAC 系统设计图</h1>
+  <p class="intro">技术栈：Next.js + FastAPI + PostgreSQL。首期实现登录与用户管理，角色管理页预留。</p>
+
+  <h2>1. 总体认证与鉴权流程</h2>
+  <div class="diagram mermaid">
+flowchart TD
+    A[用户访问 Next.js 管理端] --> B{存在登录态 Cookie?}
+    B -- 否 --> C[登录页]
+    C --> D[POST /api/auth/login]
+    D --> E{账号、密码与状态校验}
+    E -- 失败 --> F[返回统一登录失败提示]
+    F --> C
+    E -- 成功 --> G[签发 JWT 并写入 HttpOnly Cookie]
+    G --> H[跳转用户管理页]
+    B -- 是 --> I[GET /api/auth/me]
+    H --> I
+    I --> J{JWT 有效且用户已启用?}
+    J -- 否 --> K[清除 Cookie 并跳转登录页]
+    J -- 是 --> L[查询用户角色和权限]
+    L --> M[前端按权限渲染菜单和按钮]
+    M --> N[调用受保护接口]
+    N --> O[后端验证 JWT、状态与权限]
+    O --> P{具备接口权限?}
+    P -- 否 --> Q[403 无权限]
+    P -- 是 --> R[执行业务并返回结果]
+  </div>
+
+  <h2>2. 页面结构</h2>
+  <div class="diagram mermaid">
+flowchart LR
+    Login[登录页<br/>/login] -->|登录成功| Layout[后台布局<br/>侧边栏、顶栏、当前用户]
+    Layout --> Users[用户管理页<br/>/users]
+    Layout --> Roles[角色管理页<br/>/roles，首期占位]
+    Users --> Filters[筛选区<br/>关键词、状态、角色]
+    Users --> Table[用户表格<br/>分页、角色、状态]
+    Users --> Dialog[新增/编辑弹窗<br/>基本资料、状态、角色]
+    Users --> Reset[重置密码弹窗]
+    Users --> Confirm[删除确认弹窗]
+    Table --> Actions[操作按钮按权限显隐<br/>编辑、启停、重置密码、删除]
+  </div>
+
+  <h2>3. 用户管理操作流程</h2>
+  <div class="diagram mermaid">
+flowchart TD
+    A[进入用户管理页] --> B[校验 user:read]
+    B --> C[GET /api/users 查询列表]
+    C --> D{管理员操作}
+    D --> E[新增用户]
+    E --> E1[校验 user:create]
+    E1 --> E2[填写资料、初始密码、状态和角色]
+    E2 --> E3[POST /api/users]
+    E3 --> E4[校验账号唯一性、密码规则和角色有效性]
+    E4 --> E5[创建用户并绑定角色]
+    D --> F[编辑用户]
+    F --> F1[校验 user:update]
+    F1 --> F2[PUT /api/users/:id]
+    F2 --> F3[更新资料；改角色额外校验 user:assign_role]
+    D --> G[启用或停用]
+    G --> G1[校验 user:status]
+    G1 --> G2[PATCH /api/users/:id/status]
+    G2 --> G3[不可停用自己或最后一个有效超级管理员]
+    D --> H[重置密码]
+    H --> H1[校验 user:reset_password]
+    H1 --> H2[POST /api/users/:id/reset-password]
+    H2 --> H3[Argon2 哈希后保存]
+    D --> I[删除用户]
+    I --> I1[校验 user:delete 并二次确认]
+    I1 --> I2[DELETE /api/users/:id]
+    I2 --> I3[不可删除自己或最后一个有效超级管理员]
+    E5 --> C
+    F3 --> C
+    G3 --> C
+    H3 --> C
+    I3 --> C
+  </div>
+
+  <h2>4. 用户管理页详细布局</h2>
+  <div class="diagram mermaid">
+flowchart TB
+    Page[用户管理页 /users]
+    Page --> Header[标题：用户管理]
+    Header --> Create[新增用户<br/>需要 user:create]
+    Page --> Filters[筛选区]
+    Filters --> Keyword[关键词<br/>账号、姓名、邮箱]
+    Filters --> State[状态<br/>全部、启用、停用]
+    Filters --> Role[角色筛选]
+    Filters --> Search[查询和重置]
+    Page --> Table[用户列表]
+    Table --> C1[账号]
+    Table --> C2[姓名]
+    Table --> C3[联系方式]
+    Table --> C4[角色]
+    Table --> C5[状态]
+    Table --> C6[创建时间]
+    Table --> C7[操作]
+    C7 --> Edit[编辑<br/>user:update]
+    C7 --> Toggle[启用或停用<br/>user:status]
+    C7 --> ResetPassword[重置密码<br/>user:reset_password]
+    C7 --> Remove[删除<br/>user:delete]
+    Page --> Pagination[分页器]
+  </div>
+
+  <h2>5. 接口与服务关系</h2>
+  <div class="diagram mermaid">
+flowchart LR
+    Next[Next.js 前端] --> Login[POST /api/auth/login]
+    Next --> Logout[POST /api/auth/logout]
+    Next --> Me[GET /api/auth/me]
+    Next --> List[GET /api/users]
+    Next --> Create[POST /api/users]
+    Next --> Update[PUT /api/users/:id]
+    Next --> Delete[DELETE /api/users/:id]
+    Next --> Status[PATCH /api/users/:id/status]
+    Next --> Reset[POST /api/users/:id/reset-password]
+    Login --> Service[FastAPI 服务层]
+    Logout --> Service
+    Me --> Guard[JWT 与权限依赖]
+    List --> Guard
+    Create --> Guard
+    Update --> Guard
+    Delete --> Guard
+    Status --> Guard
+    Reset --> Guard
+    Guard --> Service
+    Service --> DB[(PostgreSQL)]
+    DB --- Users[(users)]
+    DB --- Roles[(roles)]
+    DB --- Permissions[(permissions)]
+    DB --- UR[(user_roles)]
+    DB --- RP[(role_permissions)]
+  </div>
+
+  <h2>6. 9 个接口与权限映射</h2>
+  <div class="diagram mermaid">
+flowchart TB
+    Auth[认证接口] --> A1[POST /api/auth/login<br/>公开]
+    Auth --> A2[POST /api/auth/logout<br/>已登录]
+    Auth --> A3[GET /api/auth/me<br/>已登录]
+    User[用户管理接口] --> U1[GET /api/users<br/>user:read]
+    User --> U2[POST /api/users<br/>user:create，包含角色分配]
+    User --> U3[PUT /api/users/:id<br/>user:update；修改角色额外校验 user:assign_role]
+    User --> U4[DELETE /api/users/:id<br/>user:delete]
+    User --> U5[PATCH /api/users/:id/status<br/>user:status]
+    User --> U6[POST /api/users/:id/reset-password<br/>user:reset_password]
+  </div>
+</body>
+</html>

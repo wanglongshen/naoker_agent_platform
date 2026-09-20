@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>文件管理系统 — 设计图全集</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "neutral",
+      flowchart: { htmlLabels: true, curve: "basis" },
+      er: { useMaxWidth: true }
+    });
+  </script>
+  <style>
+    :root {
+      --primary: #D96313;
+      --primary-hover: #B94F0C;
+      --bg: #FAF7F3;
+      --surface: #FFFFFF;
+      --text: #172033;
+      --text-secondary: #526078;
+      --border: #d9e0ea;
+      --shadow: 0 2px 10px rgba(23,32,51,0.05);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      max-width: 1440px; margin: 0 auto; padding: 32px;
+      background: var(--bg); color: var(--text);
+      font: 16px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    h2 { font-size: 22px; margin: 48px 0 16px; padding-top: 24px; border-top: 2px solid var(--primary); }
+    h3 { font-size: 18px; margin: 32px 0 12px; color: var(--primary); }
+    .subtitle { color: var(--text-secondary); margin-bottom: 40px; font-size: 15px; }
+    .diagram {
+      overflow: auto; padding: 28px; margin-bottom: 32px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface); box-shadow: var(--shadow);
+    }
+    .diagram-row { display: flex; gap: 24px; flex-wrap: wrap; }
+    .diagram-row .diagram { flex: 1; min-width: 420px; }
+
+    /* Page Mockup Section */
+    .mockup {
+      overflow: auto; padding: 0; margin-bottom: 32px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface); box-shadow: var(--shadow);
+    }
+    .mockup-title {
+      padding: 16px 24px; font-size: 15px; font-weight: 600;
+      color: var(--text-secondary); border-bottom: 1px solid var(--border);
+      background: #faf7f5;
+    }
+    .mockup-body { display: flex; min-height: 560px; }
+
+    /* Sidebar */
+    .mockup-sidebar {
+      width: 220px; min-width: 220px;
+      background: linear-gradient(180deg, #2A1812 0%, #3B271F 100%);
+      color: #e8d5c8; padding: 20px 0; display: flex; flex-direction: column;
+    }
+    .ms-logo {
+      padding: 8px 20px 16px; font-size: 14px; font-weight: 700;
+      color: #fff; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 8px;
+    }
+    .ms-nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+      font-size: 13px; cursor: default; transition: background 0.15s;
+    }
+    .ms-nav-item.active { background: rgba(255,255,255,0.1); color: #fff; font-weight: 600; }
+    .ms-nav-item.sub { padding-left: 40px; font-size: 12px; }
+    .ms-nav-icon { width: 18px; height: 18px; background: rgba(255,255,255,0.2); border-radius: 4px; text-align: center; line-height: 18px; font-size: 10px; }
+    .ms-divider { margin: 8px 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+
+    /* Main content */
+    .mockup-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+    /* Top bar */
+    .mockup-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 24px; border-bottom: 1px solid var(--border);
+      background: #fafaf8;
+    }
+    .mt-title { font-size: 18px; font-weight: 700; }
+    .mt-actions { display: flex; gap: 8px; }
+    .mt-btn {
+      padding: 6px 14px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border);
+      background: #fff; cursor: default; color: var(--text);
+    }
+    .mt-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Content area */
+    .mockup-content { display: flex; flex: 1; min-height: 0; }
+
+    /* Folder tree */
+    .mockup-tree {
+      width: 240px; min-width: 240px; border-right: 1px solid var(--border);
+      padding: 16px; overflow: auto; background: #fcfaf7;
+    }
+    .mtree-header { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .mtree-node {
+      display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+      border-radius: 6px; font-size: 13px; cursor: default; margin-bottom: 2px;
+    }
+    .mtree-node:hover { background: rgba(217,99,19,0.06); }
+    .mtree-node.active { background: rgba(217,99,19,0.12); font-weight: 600; color: var(--primary); }
+    .mtree-node.folder::before { content: "📁"; font-size: 14px; }
+    .mtree-node.expanded::before { content: "📂"; font-size: 14px; }
+    .mtree-children { padding-left: 20px; }
+    .mtree-badge { margin-left: auto; font-size: 11px; color: var(--text-secondary); background: #eee; border-radius: 10px; padding: 0 6px; }
+
+    /* File list */
+    .mockup-files { flex: 1; padding: 16px 24px; overflow: auto; }
+    .mfiles-toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .mfiles-search {
+      padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 13px; width: 200px; color: var(--text-secondary); background: #fff;
+    }
+    .mfiles-breadcrumb { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+    .mfiles-breadcrumb span { color: var(--primary); }
+    .mfiles-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .mfiles-table th {
+      text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border);
+      color: var(--text-secondary); font-weight: 600; font-size: 12px; text-transform: uppercase;
+    }
+    .mfiles-table td { padding: 10px 12px; border-bottom: 1px solid #f0ece8; }
+    .mfiles-table tr:hover td { background: rgba(217,99,19,0.03); }
+    .mfiles-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+    .mfiles-type-tag {
+      font-size: 11px; padding: 1px 6px; border-radius: 4px;
+      background: #fef3e8; color: var(--primary); white-space: nowrap;
+    }
+    .pf-row { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid #f0ece8; }
+    .pf-row:hover { background: rgba(217,99,19,0.03); }
+    .pf-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .pf-icon.pdf { background: #fde8e8; }
+    .pf-icon.doc { background: #e8f0fd; }
+    .pf-icon.img { background: #e8fdf0; }
+    .pf-icon.txt { background: #fdf6e8; }
+    .pf-info { flex: 1; }
+    .pf-name { font-size: 13px; font-weight: 500; }
+    .pf-meta { font-size: 11px; color: var(--text-secondary); }
+    .pf-action { font-size: 11px; color: var(--primary); cursor: default; }
+
+    .callout {
+      background: #fef9f4; border-left: 4px solid var(--primary); padding: 12px 16px;
+      border-radius: 0 8px 8px 0; margin-bottom: 24px; font-size: 14px;
+    }
+    .legend { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.admin { background: #fef3e8; color: #D96313; }
+    .badge.user { background: #e8f0fd; color: #4F6BFF; }
+    .badge.shared { background: #e8fdf0; color: #16a34a; }
+  </style>
+</head>
+<body>
+
+<h1>📁 文件管理系统 — 设计图全集</h1>
+<p class="subtitle">
+  技术栈：Next.js 16 + React 19 + Ant Design 6 (前端) &nbsp;|&nbsp; FastAPI + PostgreSQL (后端)<br>
+  方案 B：新建独立文件模块 &nbsp;|&nbsp; 两层入口：<span class="badge admin">管理员全局视图</span> + <span class="badge user">个人文件管理</span>
+</p>
+
+<div class="callout">
+  <strong>核心设计原则：</strong> 文件管理模块与 Agent 附件系统分离。新建 <code>file_folders</code> + <code>file_objects</code> 表，新建 <code>/api/files</code> 路由。
+  Agent 对话中的附件通过"引用链接"关联到文件库，不受附件 90 天清理策略影响。文件永久保留，用户可独立上传。
+</div>
+
+<!-- =========================== 1. 系统总览架构 =========================== -->
+<h2>1. 系统总览架构</h2>
+<p>文件管理模块在整体系统中的位置——独立于 Agent 模块，通过引用链接桥接。</p>
+<div class="diagram mermaid">
+flowchart TB
+    subgraph FRONTEND["前端 Next.js"]
+        direction TB
+        F1["Admin Dashboard<br/>│ 用户管理 │ 角色管理 │ <b>全局文件管理</b>"]
+        F2["Agent 工作区<br/>│ AI 对话 │ <b>我的文件</b>"]
+        F1 -.->|"管理员入口<br/>(dashboard)/files"| FAPI
+        F2 -.->|"个人入口<br/>(agent)/files"| FAPI
+    end
+
+    subgraph BACKEND["后端 FastAPI"]
+        FAPI["/api/files 路由层"]
+        AUTH["JWT 认证 + RBAC 鉴权"]
+        FS["FileService 文件服务"]
+        PS["PreviewService 预览服务"]
+        TEXTS["TextExtractionService 文本提取"]
+        STORE["PrivateObjectStorage 存储"]
+        FAPI --> AUTH --> FS
+        FS --> STORE
+        FS --> TEXTS
+        TEXTS --> PS
+    end
+
+    subgraph DATABASE["PostgreSQL"]
+        direction LR
+        FF[(file_folders)]
+        FO[(file_objects)]
+        ATTACH[(agent_attachments<br/>已有表)]
+    end
+
+    FS --> FF
+    FS --> FO
+    FO -.->|"引用链接<br/>source_attachment_id"| ATTACH
+
+    subgraph STORAGE["文件存储"]
+        S1["./var/files 独立存储"]
+        S2["./var/agent 附件存储<br/>已有"]
+    end
+    STORE --> S1
+    STORE --> S2
+</div>
+
+<!-- =========================== 2. 数据库 ER 图 =========================== -->
+<h2>2. 数据库 ER 图</h2>
+<p><code>file_folders</code> 使用物化路径（materialized path）实现无限嵌套；<code>file_objects</code> 记录每个文件的元数据。与已有 <code>agent_attachments</code> 表通过 <code>source_attachment_id</code> 建立弱引用。</p>
+<div class="diagram mermaid">
+erDiagram
+    users ||--o{ file_folders : "owner_user_id"
+    users ||--o{ file_objects : "owner_user_id"
+    file_folders ||--o{ file_folders : "parent_folder_id"
+    file_folders ||--o{ file_objects : "folder_id"
+    agent_attachments ||--o| file_objects : "source_attachment_id"
+
+    users {
+        uuid id PK "用户 ID"
+    }
+
+    file_folders {
+        uuid id PK "文件夹 ID"
+        uuid owner_user_id FK "所属用户"
+        uuid parent_folder_id FK "父文件夹 (可空=根目录)"
+        varchar name "文件夹名称"
+        text path "物化路径 例: /root/docs/"
+        int depth "深度"
+        bigint child_file_count "子文件数"
+        bigint total_size_bytes "累计大小"
+        uuid created_by "创建人"
+        timestamptz created_at
+        timestamptz updated_at
+        boolean is_deleted "软删除"
+    }
+
+    file_objects {
+        uuid id PK "文件 ID"
+        uuid owner_user_id FK "所属用户"
+        uuid folder_id FK "所在文件夹 (可空)"
+        varchar storage_key "存储路径键"
+        varchar filename "显示名称"
+        varchar original_filename "原始文件名"
+        varchar media_type "MIME 类型"
+        bigint size_bytes "文件大小"
+        varchar sha256 "SHA-256 哈希"
+        text extracted_text "提取文本 (3MB 以内)"
+        varchar preview_status "预览状态: none/ready/processing/failed"
+        varchar preview_path "预览缓存路径"
+        uuid source_attachment_id FK "关联附件 (可空)"
+        uuid created_by "上传人"
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz expires_at "过期时间 (可空=永久)"
+        boolean is_deleted "软删除"
+    }
+
+    agent_attachments {
+        uuid id PK "附件 ID"
+        uuid owner_user_id FK "所属用户"
+        uuid session_id FK "所属会话"
+        varchar storage_key "存储路径"
+        varchar filename "文件名"
+        varchar original_filename "原始文件名"
+        varchar media_type "MIME 类型"
+        bigint size_bytes "大小"
+        varchar sha256 "哈希"
+        varchar extraction_status "提取状态"
+        text extracted_text "提取文本"
+        timestamptz expires_at "过期时间 (90天)"
+    }
+</div>
+
+<!-- =========================== 3. 权限模型 =========================== -->
+<h2>3. 权限模型</h2>
+<div class="diagram-row">
+  <div class="diagram mermaid">
+flowchart LR
+    subgraph PERMS["文件管理权限定义"]
+        P1["file:read<br/>浏览文件"]
+        P2["file:upload<br/>上传文件"]
+        P3["file:delete<br/>删除文件"]
+        P4["file:manage_folders<br/>管理文件夹"]
+        P5["file:admin_view<br/>查看所有用户文件"]
+    end
+    SUPER["super_admin<br/>全部权限"]
+    NORMAL["普通用户<br/>file:read + upload<br/>+ delete + manage_folders"]
+    P1 --> NORMAL
+    P2 --> NORMAL
+    P3 --> NORMAL
+    P4 --> NORMAL
+    P1 --> SUPER
+    P2 --> SUPER
+    P3 --> SUPER
+    P4 --> SUPER
+    P5 --> SUPER
+  </div>
+  <div class="diagram" style="min-width:380px;">
+    <table style="width:100%; font-size:13px; border-collapse:collapse;">
+      <tr><th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">权限码</th><th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">含义</th><th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">适用</th></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;"><code>file:read</code></td><td style="padding:8px;border-bottom:1px solid #eee;">浏览自己的文件</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge user">普通用户</span></td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;"><code>file:upload</code></td><td style="padding:8px;border-bottom:1px solid #eee;">上传文件</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge user">普通用户</span></td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;"><code>file:delete</code></td><td style="padding:8px;border-bottom:1px solid #eee;">删除自己的文件</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge user">普通用户</span></td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;"><code>file:manage_folders</code></td><td style="padding:8px;border-bottom:1px solid #eee;">创建/删除/移动文件夹</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge user">普通用户</span></td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;"><code>file:admin_view</code></td><td style="padding:8px;border-bottom:1px solid #eee;">全局查看所有用户文件</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge admin">超级管理员</span></td></tr>
+    </table>
+    <p class="legend">* 前端通过 <code>isSuperAdmin()</code> 判断是否展示全局视图入口</p>
+  </div>
+</div>
+
+<!-- =========================== 4. 导航入口流程 =========================== -->
+<h2>4. 导航入口流程</h2>
+<p>两个独立入口，管理员和普通用户走不同路径，权限在入口处和接口处双层校验。</p>
+<div class="diagram mermaid">
+flowchart TD
+    LOGIN["用户登录"] --> ME["GET /api/auth/me<br/>获取角色和权限"]
+    ME --> CHECK{"角色判断"}
+
+    CHECK -->|"super_admin"| ADMIN["Admin Sidebar 侧边栏"]
+    CHECK -->|"普通用户"| AGENT["Agent Sidebar 侧边栏"]
+
+    ADMIN --> A1["📁 文件管理<br/>（全局视图）"]
+    A1 --> A2["GET /api/files/admin<br/>查看所有用户的文件"]
+
+    AGENT --> G1["📁 我的文件<br/>（个人视图）"]
+    G1 --> G2["GET /api/files<br/>仅查看自己的文件"]
+
+    A2 --> PAGE["文件管理页<br/>共用同一页面组件<br/>通过 query 参数区分模式"]
+    G2 --> PAGE
+
+    PAGE --> TREE["左侧：文件夹目录树"]
+    PAGE --> LIST["右侧：文件列表 + 工具栏"]
+</div>
+
+<!-- =========================== 5. 页面布局 Mockup =========================== -->
+<h2>5. 页面布局 Mockup（文件管理主页面）</h2>
+<p>左侧文件夹树 + 右侧文件列表，上方工具栏。遵循系统已有"Warm Intelligence"视觉风格。</p>
+<div class="mockup">
+  <div class="mockup-title">📁 文件管理 — 页面布局原型</div>
+  <div class="mockup-body">
+    <!-- Sidebar -->
+    <div class="mockup-sidebar">
+      <div class="ms-logo">🏢 企业智助</div>
+      <div class="ms-nav-item"><span class="ms-nav-icon">+</span> 开始新对话</div>
+      <div class="ms-divider"></div>
+      <div class="ms-nav-item sub"><span class="ms-nav-icon">📁</span> 我的文件</div>
+      <div class="ms-divider"></div>
+      <div class="ms-nav-item" style="font-size:11px;color:#8a7060;padding:8px 20px;">管理</div>
+      <div class="ms-nav-item"><span class="ms-nav-icon">👤</span> 用户管理</div>
+      <div class="ms-nav-item"><span class="ms-nav-icon">🔑</span> 角色管理</div>
+      <div class="ms-nav-item active"><span class="ms-nav-icon">📁</span> 文件管理</div>
+      <div class="ms-nav-item"><span class="ms-nav-icon">📋</span> 对话审计</div>
+    </div>
+    <!-- Main -->
+    <div class="mockup-main">
+      <div class="mockup-topbar">
+        <span class="mt-title">📁 文件管理 <span style="font-size:13px;color:var(--text-secondary);font-weight:400;">&nbsp;/&nbsp; <span class="badge admin">全局视图</span></span></span>
+        <div class="mt-actions">
+          <div class="mt-btn">📥 批量下载</div>
+          <div class="mt-btn primary">+ 上传文件</div>
+          <div class="mt-btn">📁 新建文件夹</div>
+        </div>
+      </div>
+      <div class="mockup-content">
+        <!-- Folder Tree -->
+        <div class="mockup-tree">
+          <div class="mtree-header">📂 文件目录</div>
+          <div class="mtree-node expanded folder active" style="font-weight:700;">全部文件 <span class="mtree-badge">42</span></div>
+          <div class="mtree-children">
+            <div class="mtree-node expanded folder">📂 合同文档 <span class="mtree-badge">12</span></div>
+            <div class="mtree-children">
+              <div class="mtree-node">📂 2024年 <span class="mtree-badge">7</span></div>
+              <div class="mtree-node active" style="font-weight:600;color:var(--primary);background:rgba(217,99,19,0.08);">📂 2025年 <span class="mtree-badge">5</span></div>
+            </div>
+            <div class="mtree-node folder">📂 报告分析 <span class="mtree-badge">8</span></div>
+            <div class="mtree-node folder">📂 产品素材 <span class="mtree-badge">15</span></div>
+            <div class="mtree-node folder">📂 会议纪要 <span class="mtree-badge">7</span></div>
+          </div>
+        </div>
+        <!-- File List -->
+        <div class="mockup-files">
+          <div class="mfiles-breadcrumb">全部文件 &gt; <span>合同文档</span> &gt; 2025年</div>
+          <div class="mfiles-toolbar">
+            <div class="mfiles-search">🔍 搜索文件名...</div>
+            <div class="mt-btn">类型 ▾</div>
+            <div class="mt-btn">时间 ▾</div>
+            <div class="mt-btn">大小 ▾</div>
+            <div style="flex:1;"></div>
+            <span style="font-size:12px;color:var(--text-secondary);">5 个文件</span>
+          </div>
+          <table class="mfiles-table">
+            <thead>
+              <tr><th style="width:32px;"><input type="checkbox"></th><th>文件名</th><th>类型</th><th>大小</th><th>修改时间</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><div class="mfiles-name"><span style="color:#d93;">📄</span> 供应商合作协议_2025Q1.pdf</div></td>
+                <td><span class="mfiles-type-tag">PDF</span></td><td>1.2 MB</td><td>2025-07-20</td>
+                <td style="color:var(--primary);font-size:12px;">预览 · 下载 · 移动 · 删除</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><div class="mfiles-name"><span style="color:#4f6;">🖼️</span> 产品效果图_v3.png</div></td>
+                <td><span class="mfiles-type-tag" style="background:#e8fdf0;color:#16a34a;">图片</span></td><td>856 KB</td><td>2025-07-18</td>
+                <td style="color:var(--primary);font-size:12px;">预览 · 下载 · 移动 · 删除</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><div class="mfiles-name"><span style="color:#46f;">📃</span> Q3 市场分析报告.docx</div></td>
+                <td><span class="mfiles-type-tag" style="background:#e8f0fd;color:#4F6BFF;">Word</span></td><td>2.4 MB</td><td>2025-07-15</td>
+                <td style="color:var(--primary);font-size:12px;">预览 · 下载 · 移动 · 删除</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><div class="mfiles-name"><span style="color:#fa3;">📊</span> 财务数据_2025H1.csv</div></td>
+                <td><span class="mfiles-type-tag" style="background:#fdf6e8;color:#b45309;">表格</span></td><td>340 KB</td><td>2025-07-10</td>
+                <td style="color:var(--primary);font-size:12px;">预览 · 下载 · 移动 · 删除</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><div class="mfiles-name"><span style="color:#999;">📝</span> 会议纪要_第28次周会.md</div></td>
+                <td><span class="mfiles-type-tag" style="background:#f3f0ea;color:#555;">文本</span></td><td>12 KB</td><td>2025-07-08</td>
+                <td style="color:var(--primary);font-size:12px;">预览 · 下载 · 移动 · 删除</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== 6. 文件操作流程图 =========================== -->
+<h2>6. 文件操作流程（核心 CRUD）</h2>
+
+<h3>6.1 上传文件流程</h3>
+<div class="diagram mermaid">
+flowchart TD
+    START["用户点击「上传文件」"] --> DROP["拖拽或点击选择文件"]
+    DROP --> VALID["前端校验<br/>- 文件类型白名单<br/>- 大小限制 &lt;10MB<br/>- 文件名安全校验"]
+    VALID --> UPLOAD["POST /api/files/upload<br/>FormData + CSRF Token"]
+    UPLOAD --> AUTH["后端认证 JWT<br/>检查 file:upload 权限"]
+    AUTH --> SCAN["安全扫描<br/>- MIME 校验<br/>- 可执行文件拦截<br/>- SHA-256 计算"]
+    SCAN --> STORE["写入 PrivateObjectStorage<br/>路径: ./var/files/{user_id}/{uuid}"]
+    STORE --> DB["写入 file_objects 表"]
+    DB --> TXT{"文件可提取文本?<br/>PDF/Word/文本/CSV"}
+    TXT -->|"是"| EXTRACT["TextExtractionService<br/>异步提取文本"]
+    TXT -->|"否（图片等）"| DONE["返回成功，刷新列表"]
+    EXTRACT --> DONE
+</div>
+
+<h3>6.2 文件预览流程</h3>
+<div class="diagram mermaid">
+flowchart TD
+    CLICK["用户点击「预览」"] --> CHECK{"预览缓存存在?"}
+    CHECK -->|"是"| SERVE["直接返回缓存"]
+    CHECK -->|"否"| TYPE{"文件类型?"}
+    TYPE -->|"PDF"| PDF["生成图片缩略页<br/>或返回原文件供 iframe 渲染"]
+    TYPE -->|"图片<br/>PNG/JPG/GIF/SVG"| IMG["返回原图<br/>前端 &lt;img&gt; 直接渲染"]
+    TYPE -->|"文本/代码<br/>txt/md/csv/json"| TEXT["返回文本内容<br/>前端语法高亮渲染"]
+    TYPE -->|"Office<br/>docx/xlsx/pptx"| OFFICE["提取文本 +<br/>转 PDF 后渲染"]
+    PDF --> CACHE["缓存到 preview_path"]
+    IMG --> CACHE
+    TEXT --> CACHE
+    OFFICE --> CACHE
+    CACHE --> SERVE
+    SERVE --> SHOW["前端弹窗/侧边面板<br/>展示预览内容"]
+</div>
+
+<h3>6.3 移动文件 / 文件夹操作</h3>
+<div class="diagram mermaid">
+flowchart TD
+    MOVE["用户右键 / 点击「移动」"] --> DIALOG["弹出文件夹选择器<br/>展示目录树"]
+    DIALOG --> SELECT["选择目标文件夹"]
+    SELECT --> VALID{"校验合法性"}
+    VALID -->|"目标=当前文件夹"| REJECT1["提示：不能移动到自己"]
+    VALID -->|"目标=子文件夹"| REJECT2["提示：不能移动到子文件夹"]
+    VALID -->|"合法"| API["PUT /api/files/{id}/move<br/>body: {target_folder_id}"]
+    API --> UPDATE["原子更新<br/>- folder_id<br/>- 物化路径 path<br/>- 更新父文件夹计数"]
+    UPDATE --> REFRESH["刷新树 + 列表"]
+</div>
+
+<h3>6.4 下载与删除</h3>
+<div class="diagram mermaid">
+flowchart LR
+    subgraph DOWNLOAD["下载流程"]
+        D1["点击「下载」"] --> D2["GET /api/files/{id}/download"]
+        D2 --> D3["流式传输 + Content-Disposition"]
+        D3 --> D4["浏览器下载"]
+    end
+    subgraph DELETE["删除流程"]
+        E1["点击「删除」"] --> E2["确认弹窗"]
+        E2 --> E3["DELETE /api/files/{id}"]
+        E3 --> E4["软删除 (is_deleted=true)"]
+        E4 --> E5["30天后物理删除"]
+    end
+</div>
+
+<!-- =========================== 7. 文件夹操作 =========================== -->
+<h2>7. 文件夹操作流程</h2>
+<div class="diagram mermaid">
+flowchart TD
+    CTX["用户操作文件夹"] --> OP{"操作类型?"}
+
+    OP -->|"新建"| NEW["POST /api/files/folders<br/>body: {name, parent_folder_id}"]
+    NEW --> N1["校验同层重名"]
+    N1 --> N2["生成物化路径<br/>path=父路径+名称"]
+    N2 --> N3["插入 file_folders"]
+    N3 --> DONE1["刷新目录树"]
+
+    OP -->|"重命名"| REN["PUT /api/files/folders/{id}<br/>body: {name}"]
+    REN --> R1["校验同层重名"]
+    R1 --> R2["更新名称 + 递归更新子节点路径"]
+    R2 --> DONE2["刷新目录树"]
+
+    OP -->|"删除"| DEL["DELETE /api/files/folders/{id}"]
+    DEL --> D1["确认弹窗<br/>提示：文件夹内 N 个文件将一并删除"]
+    D1 --> D2["软删除文件夹 + 所有子文件和子文件夹"]
+    D2 --> D3["更新父文件夹计数"]
+    D3 --> DONE3["刷新目录树"]
+
+    OP -->|"展开/折叠"| TGL["前端本地状态<br/>记录展开节点集合"]
+    TGL --> DONE4["仅前端交互"]
+</div>
+
+<!-- =========================== 8. API 架构 =========================== -->
+<h2>8. API 接口总览</h2>
+<div class="diagram mermaid">
+flowchart TB
+    subgraph API["/api/files 路由"]
+        direction TB
+        UP["POST /upload<br/>上传文件<br/>鉴权: file:upload"]
+        LS["GET / <br/>列出文件(个人)<br/>鉴权: file:read"]
+        AD["GET /admin<br/>列出所有用户文件<br/>鉴权: file:admin_view"]
+        DL["GET /{id}/download<br/>下载文件<br/>鉴权: file:read (owner/admin)"]
+        PV["GET /{id}/preview<br/>预览文件<br/>鉴权: file:read (owner/admin)"]
+        MV["PUT /{id}/move<br/>移动文件<br/>鉴权: file:read (owner)"]
+        RN["PUT /{id}/rename<br/>重命名<br/>鉴权: file:read (owner)"]
+        RM["DELETE /{id}<br/>删除文件<br/>鉴权: file:delete (owner/admin)"]
+        MF["POST /folders<br/>创建文件夹<br/>鉴权: file:manage_folders"]
+        MF2["PUT /folders/{id}<br/>重命名文件夹<br/>鉴权: file:manage_folders"]
+        MF3["DELETE /folders/{id}<br/>删除文件夹<br/>鉴权: file:manage_folders"]
+        MF4["GET /folders<br/>获取目录树<br/>鉴权: file:read"]
+        BA["DELETE /batch<br/>批量删除<br/>鉴权: file:delete"]
+    end
+    API --> DB2[(file_folders + file_objects)]
+    API --> ST["PrivateObjectStorage<br/>./var/files/"]
+</div>
+
+<!-- =========================== 9. Agent 附件与文件管理关联 =========================== -->
+<h2>9. Agent 附件 ↔ 文件管理 关联流程</h2>
+<div class="diagram mermaid">
+flowchart TD
+    AGENT_UPLOAD["用户在 Agent 对话中<br/>上传附件"] --> ATTACH_SAVE["存入 agent_attachments 表<br/>存储于 ./var/agent/"]
+    ATTACH_SAVE --> OPTION{"用户是否要<br/>保存到文件库?"}
+
+    OPTION -->|"是，点击「保存到文件库」"| LINK["调用 POST /api/files/link-attachment<br/>body: {attachment_id, folder_id}"]
+    LINK --> COPY["复制文件到 ./var/files/<br/>创建 file_objects 记录<br/>设置 source_attachment_id"]
+
+    OPTION -->|"否"| STAY["仅存在于 Agent 会话<br/>90天后自动清理"]
+
+    USER_UPLOAD["用户在文件管理页<br/>直接上传"] --> FILE_SAVE["存入 file_objects 表<br/>存储于 ./var/files/<br/>永久保留"]
+
+    COPY --> FILE_LIST["出现在文件列表中<br/>独立生命周期"]
+    FILE_SAVE --> FILE_LIST
+</div>
+
+<!-- =========================== 10. 完整功能模块地图 =========================== -->
+<h2>10. 功能模块总图</h2>
+<div class="diagram mermaid">
+flowchart LR
+    subgraph FM["文件管理模块"]
+        direction TB
+        M1["📂 文件夹管理"] --> M1a["新建文件夹"]
+        M1 --> M1b["重命名文件夹"]
+        M1 --> M1c["删除文件夹"]
+        M1 --> M1d["移动文件夹"]
+
+        M2["📄 文件操作"] --> M2a["上传文件"]
+        M2 --> M2b["下载文件"]
+        M2 --> M2c["删除文件"]
+        M2 --> M2d["移动文件"]
+        M2 --> M2e["重命名文件"]
+        M2 --> M2f["批量删除"]
+
+        M3["👁️ 文件预览"] --> M3a["PDF 预览"]
+        M3 --> M3b["图片预览"]
+        M3 --> M3c["文本预览 (语法高亮)"]
+        M3 --> M3d["Office 文档文本提取"]
+
+        M4["🔍 搜索过滤"] --> M4a["文件名搜索"]
+        M4 --> M4b["文件类型筛选"]
+        M4 --> M4c["时间范围筛选"]
+        M4 --> M4d["大小排序"]
+
+        M5["🔗 Agent 集成"] --> M5a["附件保存到文件库"]
+        M5 --> M5b["文件库引用到对话"]
+        M5 --> M5c["AI 文本提取"]
+
+        M6["👑 管理员功能"] --> M6a["全局文件浏览"]
+        M6 --> M6b["按用户筛选"]
+        M6 --> M6c["强制删除"]
+        M6 --> M6d["存储统计"]
+    end
+</div>
+
+<!-- =========================== 11. 全局视图页面 Mockup =========================== -->
+<h2>11. 管理员全局视图 — 额外差异</h2>
+<p>管理员进入 <code>/admin/files</code> 时，页面在基础布局上增加以下差异：</p>
+<div class="mockup">
+  <div class="mockup-title">📁 文件管理 — 全局视图（管理员视角）</div>
+  <div class="mockup-body" style="flex-direction:column;">
+    <div style="padding:16px 24px;display:flex;gap:12px;align-items:center;background:#fafaf8;border-bottom:1px solid var(--border);">
+      <span style="font-size:18px;font-weight:700;">📁 文件管理</span>
+      <span class="badge admin">全局视图</span>
+      <div style="flex:1;"></div>
+      <select style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+        <option>所有用户</option>
+        <option>张三 (3 个文件)</option>
+        <option>李四 (12 个文件)</option>
+        <option>王五 (8 个文件)</option>
+      </select>
+      <div class="mt-btn primary">+ 上传文件</div>
+    </div>
+    <div style="display:flex;flex:1;">
+      <div class="mockup-tree" style="width:260px;">
+        <div class="mtree-header">📂 用户文件目录</div>
+        <div class="mtree-node folder" style="font-weight:600;">👤 张三 <span class="mtree-badge">3</span></div>
+        <div class="mtree-children">
+          <div class="mtree-node" style="font-size:12px;color:var(--text-secondary);">📄 暂无文件夹</div>
+        </div>
+        <div class="mtree-node expanded folder" style="font-weight:600;">👤 李四 <span class="mtree-badge">12</span></div>
+        <div class="mtree-children">
+          <div class="mtree-node folder">📂 项目文档</div>
+          <div class="mtree-node folder">📂 设计稿</div>
+        </div>
+        <div class="mtree-node folder" style="font-weight:600;">👤 王五 <span class="mtree-badge">8</span></div>
+        <div class="mtree-children">
+          <div class="mtree-node folder">📂 财务数据</div>
+        </div>
+      </div>
+      <div class="mockup-files">
+        <div class="mfiles-breadcrumb">所有用户 &gt; <span>李四</span></div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          <thead>
+            <tr><th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);">文件名</th><th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);">所属用户</th><th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);">类型</th><th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);">大小</th><th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);">时间</th><th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);">操作</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;">📄 需求文档_v2.pdf</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;"><span class="badge user">李四</span></td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;"><span class="mfiles-type-tag">PDF</span></td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;">3.2 MB</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;">2025-07-22</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;font-size:12px;color:var(--primary);">预览 · 下载 · 删除</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;">🖼️ 原型图.png</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;"><span class="badge user">李四</span></td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;"><span class="mfiles-type-tag" style="background:#e8fdf0;color:#16a34a;">图片</span></td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;">1.8 MB</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;">2025-07-21</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0ece8;font-size:12px;color:var(--primary);">预览 · 下载 · 删除</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== 12. 完整用户旅程 =========================== -->
+<h2>12. 完整用户旅程</h2>
+<div class="diagram mermaid">
+journey
+    title 文件管理 — 典型用户旅程
+    section 管理员
+      登录系统: 5: 管理员
+      进入文件管理（全局）: 5: 管理员
+      浏览所有用户的文件: 4: 管理员
+      按用户筛选查看李四的文件: 4: 管理员
+      预览某个 PDF 文件: 4: 管理员
+      发现违规文件并删除: 3: 管理员
+    section 普通用户
+      登录系统: 5: 普通用户
+      进入 Agent 工作区: 5: 普通用户
+      点击侧边栏「我的文件」: 5: 普通用户
+      浏览自己的文件和文件夹: 4: 普通用户
+      新建「项目文档」文件夹: 4: 普通用户
+      上传 3 个 PDF 到该文件夹: 5: 普通用户
+      预览刚上传的 PDF: 5: 普通用户
+      下载一份报告文件: 4: 普通用户
+      将对话中的附件保存到文件库: 3: 普通用户
+</div>
+
+<!-- =========================== 13. 新建文件类型支持 =========================== -->
+<h2>13. 文件类型白名单扩展</h2>
+<div class="diagram" style="overflow:visible;">
+  <table style="width:100%;font-size:13px;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">类别</th>
+        <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">扩展名</th>
+        <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">MIME 类型</th>
+        <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">大小限制</th>
+        <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">预览支持</th>
+        <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">文本提取</th>
+        <th style="text-align:left;padding:8px;border-bottom:2px solid var(--border);">来源</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">文本类</td><td style="padding:8px;border-bottom:1px solid #eee;">.txt .md .csv .json .xml .yaml .log</td><td style="padding:8px;border-bottom:1px solid #eee;">text/*, application/json</td><td style="padding:8px;border-bottom:1px solid #eee;">10 MB</td><td style="padding:8px;border-bottom:1px solid #eee;">✅ 语法高亮</td><td style="padding:8px;border-bottom:1px solid #eee;">✅ 原生</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge shared">已有</span> + 新增</td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">文档类</td><td style="padding:8px;border-bottom:1px solid #eee;">.pdf .docx .xlsx .pptx</td><td style="padding:8px;border-bottom:1px solid #eee;">application/pdf, application/vnd.openxmlformats-*</td><td style="padding:8px;border-bottom:1px solid #eee;">10 MB</td><td style="padding:8px;border-bottom:1px solid #eee;">✅ PDF 内嵌预览 / Office 文本提取</td><td style="padding:8px;border-bottom:1px solid #eee;">✅ PDF 已有 / Office 新增</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge shared">PDF 已有</span> <span class="badge user">Office 新增</span></td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">图片类</td><td style="padding:8px;border-bottom:1px solid #eee;">.png .jpg .jpeg .gif .svg .webp</td><td style="padding:8px;border-bottom:1px solid #eee;">image/*</td><td style="padding:8px;border-bottom:1px solid #eee;">5 MB</td><td style="padding:8px;border-bottom:1px solid #eee;">✅ 原图渲染</td><td style="padding:8px;border-bottom:1px solid #eee;">❌ 非文本</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge user">新增</span></td></tr>
+      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">HTML 类</td><td style="padding:8px;border-bottom:1px solid #eee;">.html .htm</td><td style="padding:8px;border-bottom:1px solid #eee;">text/html</td><td style="padding:8px;border-bottom:1px solid #eee;">5 MB</td><td style="padding:8px;border-bottom:1px solid #eee;">❌ 安全沙箱渲染(可选)</td><td style="padding:8px;border-bottom:1px solid #eee;">✅</td><td style="padding:8px;border-bottom:1px solid #eee;"><span class="badge shared">已有</span></td></tr>
+    </tbody>
+  </table>
+  <p class="legend"> ❌ 禁止类型：.exe .dll .so .dylib .zip .tar .gz .rar .7z (可执行文件与压缩包) | 最大单文件 10MB</p>
+</div>
+
+<!-- =========================== Footer =========================== -->
+<div style="margin-top:64px;padding-top:24px;border-top:1px solid var(--border);color:var(--text-secondary);font-size:13px;text-align:center;">
+  <p>文件管理系统设计图 — 2026年7月28日 &nbsp;|&nbsp; 技术方案：方案 B（新建独立文件模块）</p>
+  <p>包含 13 张设计图：系统架构 / 数据库 ER / 权限模型 / 导航流程 / 页面布局 / 上传下载删除移动预览 / 文件夹 CRUD / API 架构 / Agent 关联 / 功能模块 / 管理员视图 / 用户旅程 / 文件类型矩阵</p>
+</div>
+
+</body>
+</html>

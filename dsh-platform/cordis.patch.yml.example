@@ -1,0 +1,10 @@
+# $DSH_HOME/profiles/web/cordis.patch.yml —— 平台生成的「启用 connector + 传 config」行样例。
+# 真实文件由 backend app.services.dsh.instance_config.ensure_home_config 按实例写入；
+# 插件自身包内的 cordis.patch.yml 用 insert 段把 @naoker/dsh-platform-connector 挂进树，
+# 本行按 id 定向覆盖其 config，语义为「整段替换」（config 三个键一次写齐，勿只写单键）。
+# 实际值：platformBase 为平台权威域，userId 为当前登录用户，platformToken 为短时平台 token（每次 spawn 刷新）。
+- id: naoker-platform-connector
+  config:
+    platformBase: http://127.0.0.1:8000
+    userId: u-1
+    platformToken: <短时平台token>
